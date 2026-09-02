@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">PECI Watch</string>
+    <string name="notification_channel_imu">Stream IMU</string>
+    <string name="notification_channel_imu_desc">Streaming de sensores para o telemóvel</string>
+    <string name="notification_imu_title">PECI a transmitir IMU</string>
+    <string name="notification_imu_text">A enviar acelerómetro + giroscópio</string>
+</resources>

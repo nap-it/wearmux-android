@@ -1,0 +1,643 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <title>Navisens Trajectory</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    /* Use absolute positioning + 100% to fill the WebView host regardless of
+       viewport-unit resolution. 100vh proved unreliable inside Compose'd
+       AndroidView (sometimes evaluates to 0 until the first real layout pass,
+       which left canvas at 0×0 and the trajectory invisible even with points). */
+    html, body {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      width: 100%; height: 100%;
+      overflow: hidden;
+    }
+    body {
+      font-family: "SF Mono", "Monaco", "Consolas", monospace;
+      background: #0D0D11;
+      color: #E0E0E8;
+    }
+    .wrap { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 6px; padding: 6px; }
+    .header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 8px 10px;
+      background: #18181C; border: 1px solid #2A2A2E; border-radius: 8px;
+      gap: 8px;
+    }
+    .title { color: #B5E61D; font-size: 11px; letter-spacing: 0.5px; flex: 1; }
+    .status {
+      padding: 3px 8px; font-size: 10px; border-radius: 4px;
+      background: #333; color: #bbb; white-space: nowrap;
+    }
+    .header-actions { display: flex; gap: 6px; }
+    .status.ready { background: #2d4a2d; color: #8AFF8A; }
+    .status.running { background: #1e3d5c; color: #8ADAFF; }
+    .status.error { background: #4a2d2d; color: #ff8a8a; }
+
+    .canvas-box {
+      flex: 1;
+      background: #0D0D11;
+      border: 1px solid #2A2A2E;
+      border-radius: 8px;
+      position: relative;
+      overflow: hidden;
+    }
+    #trajectory { width: 100%; height: 100%; display: block; }
+
+    .overlay {
+      position: absolute; top: 8px; left: 8px;
+      font-size: 10px; line-height: 1.45;
+      background: rgba(16,16,20,0.85);
+      padding: 8px 10px;
+      border: 1px solid #2A2A2E;
+      border-radius: 6px;
+      pointer-events: none;
+    }
+    .overlay .k { color: #6A6A7A; }
+    .overlay .v-lat { color: #8A8AFF; }
+    .overlay .v-hdg { color: #8AFF8A; }
+    .overlay .v-mot { color: #FFFF8A; }
+    .overlay .v-step { color: #B5E61D; }
+
+    .hint {
+      position: absolute; left: 50%; top: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 12px; color: #6A6A7A;
+      text-align: center; pointer-events: none;
+      letter-spacing: 0.3px;
+    }
+    .hint.hidden { display: none; }
+
+    .footer {
+      padding: 8px 12px;
+      background: #18181C; border: 1px solid #2A2A2E; border-radius: 8px;
+      display: flex; justify-content: space-between; gap: 8px;
+      font-size: 10px; align-items: center;
+    }
+    .footer .stat { color: #6A6A7A; }
+    .footer .stat b { color: #B5E61D; font-weight: 600; }
+
+    button {
+      background: #B5E61D; color: #000;
+      border: none; border-radius: 4px;
+      padding: 4px 10px; font-size: 10px; cursor: pointer;
+      font-family: inherit; font-weight: 600;
+    }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    button.secondary { background: #3a3a42; color: #E0E0E8; }
+  </style>
+</head>
+<body>
+<!-- Navisens SDK writes to #logFileName.value when loggingEnabled; keep
+     this hidden element to avoid TypeError if logging ever re-enables. -->
+<input type="hidden" id="logFileName">
+<div class="wrap">
+  <div class="header">
+    <span class="title">NAVISENS · 2D TRAJECTORY</span>
+    <span id="status" class="status">loading sdk...</span>
+    <div class="header-actions">
+      <button id="btn-reset" class="secondary">RESET</button>
+      <button id="btn-toggle">GRAVAR</button>
+    </div>
+  </div>
+  <div class="canvas-box">
+    <canvas id="trajectory"></canvas>
+    <div class="overlay" id="overlay">
+      <div><span class="k">"sdk":</span> <span class="v-step" id="ov-sdk">—</span></div>
+      <div><span class="k">"position":</span> <span class="v-lat" id="ov-pos">—</span></div>
+      <div><span class="k">"heading":</span> <span class="v-hdg" id="ov-hdg">—</span></div>
+      <div><span class="k">"motion":</span> <span class="v-mot" id="ov-mot">—</span></div>
+      <div><span class="k">"steps":</span> <span class="v-step" id="ov-step">0</span></div>
+      <div><span class="k">"sdk_recv":</span> <span class="v-step" id="ov-recv">0</span></div>
+    </div>
+    <div id="hint" class="hint">Press START and walk — your path will draw here</div>
+  </div>
+  <div class="footer">
+    <span class="stat">points: <b id="f-pts">0</b></span>
+    <span class="stat">dist: <b id="f-dist">0.0m</b></span>
+    <span class="stat">imu: <b id="ov-imu-hz">0</b>Hz</span>
+  </div>
+</div>
+
+<script>
+  // ─── Config ────────────────────────────────────────────────────────
+  let DEVELOPER_KEY = "";
+  const SDK_BASE_URL  = "https://www.navisens.com/web-sdk/";
+  const UPDATE_INTERVAL_MS = 50;
+  const PATH_COLOR = "#FFFFFF";
+  const PATH_GLOW = "rgba(255, 255, 255, 0.18)";
+
+  // ─── UI helpers ────────────────────────────────────────────────────
+  const elStatus = document.getElementById("status");
+  const elToggle = document.getElementById("btn-toggle");
+  const setStatus = (txt, cls) => {
+    elStatus.textContent = txt;
+    elStatus.className = "status" + (cls ? " " + cls : "");
+  };
+  const postToAndroid = (event, data) => {
+    if (window.Android && window.Android.onNavisensEvent) {
+      try { window.Android.onNavisensEvent(event, JSON.stringify(data || {})); } catch (e) {}
+    }
+  };
+
+  window.__peciSetDeveloperKey = function (key) {
+    const trimmed = (key || "").trim();
+    if (!trimmed || trimmed === "<developer-key>" || trimmed === "REPLACE_ME") return false;
+    DEVELOPER_KEY = trimmed;
+    console.log("[peci-navisens] developer key set");
+    return true;
+  };
+
+  // ─── Trajectory state + canvas ─────────────────────────────────────
+  const canvas = document.getElementById("trajectory");
+  const ctx = canvas.getContext("2d");
+  let points = [];
+  let currentHeading = 0; // radians
+  let stepCount = 0;
+  let lastMotion = "—";
+
+  // Diagnostics counters
+  let imuEvtCount = 0;
+  let sdkRecvCount = 0;
+
+  // Listen to devicemotion directly so we can tell if IMU is alive inside
+  // the WebView even before the SDK starts. If imu_evts stays at 0 after
+  // starting, WebView has no sensor access — check permissions.
+  window.addEventListener("devicemotion", () => { imuEvtCount++; }, { passive: true });
+  (function trackImuHz() {
+    let prev = 0;
+    setInterval(() => {
+      const hz = imuEvtCount - prev;
+      prev = imuEvtCount;
+      const hzEl = document.getElementById("ov-imu-hz");
+      const cntEl = document.getElementById("ov-imu");
+      if (hzEl)  hzEl.textContent  = hz;
+      if (cntEl) cntEl.textContent = imuEvtCount;
+    }, 1000);
+  })();
+
+  // Track the CSS-pixel dimensions so render() uses the same values we
+  // actually sized the canvas with (clientWidth/Height read at render time
+  // can be 0 during attach/detach, which would clear the canvas to blank).
+  let cssW = 0, cssH = 0;
+  function resize() {
+    const dpr = window.devicePixelRatio || 1;
+    // Fallback chain: canvas client → window inner → documentElement.
+    // Android WebView occasionally reports canvas.clientWidth=0 even after
+    // HTML is visible; window.innerWidth is authoritative for WebView size.
+    let cw = canvas.clientWidth;
+    let ch = canvas.clientHeight;
+    if (cw <= 0 || ch <= 0) {
+      cw = window.innerWidth  || document.documentElement.clientWidth  || 0;
+      ch = window.innerHeight || document.documentElement.clientHeight || 0;
+    }
+    if (cw <= 0 || ch <= 0) {
+      // Last-resort fallback so something actually draws while we wait for
+      // layout. Any later resize call will replace these with real dims via
+      // the ResizeObserver path.
+      cw = 400; ch = 400;
+      console.log("[peci-canvas] resize using fallback 400x400 (canvas & window both 0)");
+    }
+    cssW = cw; cssH = ch;
+    const want_w = Math.max(1, Math.floor(cw * dpr));
+    const want_h = Math.max(1, Math.floor(ch * dpr));
+    if (canvas.width !== want_w || canvas.height !== want_h) {
+      canvas.width  = want_w;
+      canvas.height = want_h;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      // Also force an explicit CSS size so the canvas element itself
+      // is visible even if the parent flex chain collapsed to 0.
+      canvas.style.width  = cw + "px";
+      canvas.style.height = ch + "px";
+      console.log("[peci-canvas] resized " + cw + "x" + ch + " @dpr" + dpr +
+        " (canvas.client=" + canvas.clientWidth + "x" + canvas.clientHeight +
+        ", window=" + window.innerWidth + "x" + window.innerHeight + ")");
+    }
+  }
+  window.addEventListener("resize", resize);
+  // ResizeObserver catches Compose/AndroidView size changes that fire no
+  // window resize event (tab switches, rotation, keyboard).
+  if (typeof ResizeObserver !== "undefined") {
+    new ResizeObserver(resize).observe(document.documentElement);
+    new ResizeObserver(resize).observe(document.body);
+  }
+  setTimeout(resize, 50);
+  setTimeout(resize, 300);
+  setTimeout(resize, 1000);
+  setInterval(resize, 1000); // belt-and-braces: catch late layout passes
+
+  function render() {
+    // Use cached CSS dims instead of re-reading clientWidth/Height every
+    // frame — those can momentarily return 0 during layout churn and blank
+    // the canvas. resize() keeps these in sync via ResizeObserver.
+    const W = cssW || canvas.clientWidth;
+    const H = cssH || canvas.clientHeight;
+    if (W <= 0 || H <= 0) return;
+    ctx.clearRect(0, 0, W, H);
+
+    // Grid
+    ctx.strokeStyle = "#1C1C22";
+    ctx.lineWidth = 0.5;
+    for (let i = 0; i <= 8; i++) {
+      const x = W * i / 8, y = H * i / 8;
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+    }
+    ctx.strokeStyle = "#2A2A30";
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(W / 2, 0); ctx.lineTo(W / 2, H); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, H / 2); ctx.lineTo(W, H / 2); ctx.stroke();
+
+    if (points.length === 0) {
+      ctx.fillStyle = "#FFFFFF";
+      ctx.font = "12px monospace";
+      ctx.fillText("Sem dados IMU", 12, 20);
+      ctx.fillStyle = "rgba(255, 255, 255, 0.6)";
+      ctx.fillText("Carrega em GRAVAR e anda alguns passos", 12, 38);
+      return;
+    }
+
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (const p of points) {
+      if (p.x < minX) minX = p.x;
+      if (p.x > maxX) maxX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.y > maxY) maxY = p.y;
+    }
+    const spanX = Math.max(maxX - minX, 4);
+    const spanY = Math.max(maxY - minY, 4);
+    const pad = 30;
+    const scale = Math.min((W - pad * 2) / spanX, (H - pad * 2) / spanY);
+    const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+
+    const project = (p) => ({
+      x: W / 2 + (p.x - cx) * scale,
+      y: H / 2 - (p.y - cy) * scale,
+    });
+
+    // Red trajectory line (Navisens LinkedIn demo style)
+    if (points.length >= 2) {
+      const drawLine = (w, alpha) => {
+        ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+        ctx.lineWidth = w;
+        ctx.lineCap = "round"; ctx.lineJoin = "round";
+        ctx.beginPath();
+        const first = project(points[0]);
+        ctx.moveTo(first.x, first.y);
+        for (let i = 1; i < points.length; i++) {
+          const p = project(points[i]);
+          ctx.lineTo(p.x, p.y);
+        }
+        ctx.stroke();
+      };
+      drawLine(16, 0.10);
+      drawLine(8,  0.22);
+      drawLine(3,  1.0);
+    }
+
+    // Small start marker (darker red)
+    const start = project(points[0]);
+    ctx.fillStyle = "rgba(255, 255, 255, 0.20)";
+    ctx.beginPath(); ctx.arc(start.x, start.y, 9, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#FFFFFF";
+    ctx.beginPath(); ctx.arc(start.x, start.y, 4, 0, Math.PI * 2); ctx.fill();
+
+    // Big pulsing red dot for current position (the user)
+    const last = project(points[points.length - 1]);
+    const pulseR = 22 + 8 * Math.sin(Date.now() / 400);
+    ctx.fillStyle = PATH_GLOW;
+    ctx.beginPath(); ctx.arc(last.x, last.y, pulseR + 10, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "rgba(255, 255, 255, 0.35)";
+    ctx.beginPath(); ctx.arc(last.x, last.y, pulseR, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = PATH_COLOR;
+    ctx.beginPath(); ctx.arc(last.x, last.y, 12, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#FFF";
+    ctx.beginPath(); ctx.arc(last.x, last.y, 4, 0, Math.PI * 2); ctx.fill();
+
+    // Heading arrow (radians; 0 = +X, π/2 = +Y)
+    const arrowLen = 34;
+    const dx = Math.cos(currentHeading) * arrowLen;
+    const dy = -Math.sin(currentHeading) * arrowLen;
+    ctx.strokeStyle = PATH_COLOR;
+    ctx.lineWidth = 3; ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(last.x, last.y);
+    ctx.lineTo(last.x + dx, last.y + dy);
+    ctx.stroke();
+  }
+
+  // Wrap render in try/catch: a thrown error inside render would otherwise
+  // kill the entire rAF chain (animLoop never re-schedules), freezing the
+  // canvas silently at whatever state it was in. We've seen this cause the
+  // trajectory to "never appear" when the underlying cause was a one-off
+  // draw-time exception.
+  function animLoop() {
+    try { render(); }
+    catch (e) { console.error("[peci-canvas] render error:", e && e.message ? e.message : e); }
+    requestAnimationFrame(animLoop);
+  }
+  requestAnimationFrame(animLoop);
+
+  // Once-a-second health log so we can diagnose "trajectory not visible"
+  // remotely without a devtools attach: reports canvas size + point count.
+  setInterval(() => {
+    if (!isRunning) return;
+    console.log("[peci-canvas] css=" + cssW + "x" + cssH +
+      " pts=" + points.length +
+      " running=" + isRunning +
+      " recv=" + sdkRecvCount);
+  }, 1000);
+
+  function updateStats() {
+    document.getElementById("f-pts").textContent = points.length;
+    let d = 0;
+    for (let i = 1; i < points.length; i++) {
+      const a = points[i - 1], b = points[i];
+      d += Math.hypot(b.x - a.x, b.y - a.y);
+    }
+    document.getElementById("f-dist").textContent = d.toFixed(1) + "m";
+  }
+
+  // ─── Navisens SDK integration ──────────────────────────────────────
+  let moduleReady = false;
+  let isRunning   = false;
+  let hasOutput   = false;
+
+  // IMPORTANT: Navisens Web SDK looks up `receive`, `receivePath` and
+  // `reportStatus` as GLOBAL functions (not as properties of Module).
+  // If they're defined inside window.Module the SDK won't call them.
+  // See navisens/hello-world-web reference demo on GitHub.
+
+  // update = { position: { x, y, heading }, timestamp, motion }
+  function receive(update) {
+    sdkRecvCount++;
+    const recvEl = document.getElementById("ov-recv");
+    if (recvEl) recvEl.textContent = sdkRecvCount;
+    if (!update || !update.position) return;
+    const x = Number(update.position.x);
+    const y = Number(update.position.y);
+    const heading = Number(update.position.heading);
+    const motion  = update.motion ? String(update.motion) : lastMotion;
+
+    if (Number.isFinite(x) && Number.isFinite(y)) {
+      hasOutput = true;
+      // Push every point — matches reference demo (no threshold).
+      points.push({ x, y });
+      if (points.length > 3000) points.shift();
+    }
+    if (Number.isFinite(heading)) currentHeading = heading;
+    lastMotion = motion;
+
+    document.getElementById("ov-sdk").textContent = isRunning ? "running" : "ready";
+    document.getElementById("ov-pos").textContent =
+      Number.isFinite(x) && Number.isFinite(y)
+        ? ("x=" + x.toFixed(2) + " y=" + y.toFixed(2) + " m")
+        : "—";
+    document.getElementById("ov-hdg").textContent =
+      Number.isFinite(heading) ? ((heading * 180 / Math.PI).toFixed(1) + "°") : "—";
+    document.getElementById("ov-mot").textContent = motion;
+    document.getElementById("ov-step").textContent = stepCount;
+
+    updateStats();
+    postToAndroid("motion", {
+      x: Number.isFinite(x) ? x : null,
+      y: Number.isFinite(y) ? y : null,
+      heading: Number.isFinite(heading) ? heading : 0,
+      motionType: motion,
+      stepCount: stepCount,
+    });
+
+    if (isRunning) setStatus("running", "running");
+  }
+
+  function receivePath(path) {
+    if (!Array.isArray(path) || path.length === 0) return;
+    points = path
+      .map(p => ({ x: Number(p.x), y: Number(p.y) }))
+      .filter(p => Number.isFinite(p.x) && Number.isFinite(p.y));
+    updateStats();
+  }
+
+  function reportStatus(statusCode, message) {
+    const code = Number(statusCode);
+    const txt  = message ? String(message) : "";
+    console.log("[navisens-status]", code, txt);
+    if (Number.isFinite(code) && code !== 0) {
+      setStatus("code " + code + (txt ? ": " + txt : ""), "error");
+      postToAndroid("error", { code, message: txt });
+    } else if (txt) {
+      setStatus(txt, "ready");
+    }
+  }
+
+  // Expose as globals so the SDK can find them (belt-and-braces; they're
+  // already module-level, but be explicit for clarity).
+  window.receive = receive;
+  window.receivePath = receivePath;
+  window.reportStatus = reportStatus;
+
+  // Bridge called by Android with a fully remapped IMU sample in the
+  // Navisens phone-frame convention. Matches the BrilliantSole demo exactly:
+  //
+  //   Navisens.inputMotion(timestampS, gx, gy, gz, ax, ay, az, mx, my, mz)
+  //   where gyro is deg/s, accel is m/s² including gravity, mag is mG.
+  //         accel is m/s² including gravity, mag is µT (0 if disabled).
+  //
+  // Timestamp arrives from Android in milliseconds (System.currentTimeMillis).
+  let __peciSampleCount = 0;
+  let __peciLastLogT = 0;
+  window.__peciImuSample = function (tMs, gx, gy, gz, ax, ay, az, mx, my, mz) {
+    imuEvtCount++;
+    __peciSampleCount++;
+    if (!moduleReady || !isRunning) return;
+    if (!window.Module || typeof window.Module.inputMotion !== "function") return;
+    // Drop NaN/Inf samples — a single bad value puts the SDK step detector
+    // into an unrecoverable bad state (observed: SDK freezes at last valid
+    // position and only emits "stationary" thereafter).
+    if (!(Number.isFinite(gx) && Number.isFinite(gy) && Number.isFinite(gz) &&
+          Number.isFinite(ax) && Number.isFinite(ay) && Number.isFinite(az))) {
+      return;
+    }
+    const timestampS = tMs / 1000;
+    try {
+      window.Module.inputMotion(
+        timestampS,
+        gx, gy, gz,
+        ax, ay, az,
+        Number.isFinite(mx) ? mx : 0,
+        Number.isFinite(my) ? my : 0,
+        Number.isFinite(mz) ? mz : 0
+      );
+    } catch (e) { /* SDK sometimes throws during teardown */ }
+    // Diagnostic: rate + last sample once a second.
+    const now = Date.now();
+    if (now - __peciLastLogT >= 1000) {
+      console.log("[peci-imu] samples/s=" + __peciSampleCount +
+        " ax=" + ax.toFixed(2) + " ay=" + ay.toFixed(2) + " az=" + az.toFixed(2) +
+        " gx=" + gx.toFixed(3) + " gy=" + gy.toFixed(3) + " gz=" + gz.toFixed(3));
+      __peciSampleCount = 0;
+      __peciLastLogT = now;
+    }
+  };
+
+  // Kotlin calls this BEFORE clicking START so we know whether the IMU
+  // stream is coming from the glasses (headmounted) or phone sensors.
+  // WebView has no DeviceMotionEvent support, so we always run in external
+  // mode and feed inputMotion ourselves with rad/s gyro + m/s² accel.
+  let __peciDeviceMode = "phone"; // "phone" | "headmounted" | "other"
+  window.__peciSetDeviceMode = function (mode) {
+    if ((mode === "headmounted" || mode === "phone" || mode === "other") && mode !== __peciDeviceMode) {
+      __peciDeviceMode = mode;
+      console.log("[peci-imu] device mode -> " + __peciDeviceMode);
+    }
+  };
+
+  // Module only holds Emscripten runtime hooks + logging.
+  window.Module = {
+    preRun: [],
+    postRun: [],
+    onRuntimeInitialized: function () {
+      moduleReady = true;
+      elToggle.disabled = false;
+      setStatus("ready", "ready");
+      document.getElementById("ov-sdk").textContent = "loaded";
+      postToAndroid("ready", {});
+    },
+    print:    function (t) { if (t) console.log(t); },
+    printErr: function (t) { if (t) console.error(t); },
+  };
+
+  // ─── Motion permission (iOS-style) ─────────────────────────────────
+  async function requestMotionPermission() {
+    try {
+      if (typeof DeviceMotionEvent !== "undefined" &&
+          typeof DeviceMotionEvent.requestPermission === "function") {
+        const res = await DeviceMotionEvent.requestPermission();
+        return res === "granted";
+      }
+      // Android WebView: sensors typically work without an explicit grant.
+      return true;
+    } catch (e) {
+      console.error("motion permission:", e);
+      return false;
+    }
+  }
+
+  // ─── Start / stop controls ─────────────────────────────────────────
+  async function startSdk() {
+    if (!moduleReady) { setStatus("sdk not ready yet"); return false; }
+    if (!DEVELOPER_KEY || DEVELOPER_KEY === "<developer-key>" || DEVELOPER_KEY === "REPLACE_ME") {
+      setStatus("missing developer key", "error");
+      postToAndroid("error", { message: "missing developer key" });
+      return false;
+    }
+
+    hasOutput = false;
+    setStatus("requesting permission…");
+    const granted = await requestMotionPermission();
+    if (!granted) { setStatus("motion permission denied", "error"); return false; }
+
+    setStatus("starting…");
+    try {
+      // Always run in external input mode and feed inputMotion manually —
+      // WebView has no DeviceMotionEvent, and BS's "browser" path relies on
+      // it. Kotlin always converts to deg/s + m/s² before calling us.
+      // deviceType is advisory only (SDK log says it's ignored here).
+      const isHead = __peciDeviceMode === "headmounted";
+      const isOther = __peciDeviceMode === "other";
+      window.Module.start({
+        developerKey:    DEVELOPER_KEY,
+        inputSource:     "external",
+        deviceType:      isHead ? "headmounted" : (isOther ? "other" : "phone"),
+        loggingEnabled:  false,
+        updateIntervalMs: UPDATE_INTERVAL_MS,
+        slamPathEnabled: false,
+      });
+      // Always seed an origin point so something is visible immediately.
+      if (points.length === 0) {
+        points.push({ x: 0, y: 0 });
+        updateStats();
+      }
+      document.getElementById("hint")?.classList.add("hidden");
+      isRunning = true;
+      elToggle.textContent = "PARAR";
+      setStatus("running", "running");
+      postToAndroid("started", {});
+      return true;
+    } catch (e) {
+      console.error(e);
+      setStatus("start failed: " + (e && e.message ? e.message : e), "error");
+      postToAndroid("error", { message: String(e && e.message ? e.message : e) });
+      return false;
+    }
+  }
+
+  function stopSdk() {
+    try { window.Module.stop && window.Module.stop(); } catch (e) {}
+    isRunning = false;
+    elToggle.textContent = "GRAVAR";
+    setStatus("stopped", "ready");
+    postToAndroid("stopped", {});
+  }
+
+  async function toggleSdk() {
+    postToAndroid("ui", { action: "toggle" });
+    if (isRunning) {
+      stopSdk();
+    } else {
+      await startSdk();
+    }
+  }
+
+  elToggle.addEventListener("click", () => { toggleSdk(); });
+
+  document.getElementById("btn-reset").addEventListener("click", () => {
+    points = [];
+    stepCount = 0;
+    updateStats();
+    if (!isRunning) document.getElementById("hint")?.classList.remove("hidden");
+    postToAndroid("reset", {});
+  });
+
+  // Allow the native Kotlin side to trigger start/stop/reset so users have a
+  // visible, always-present control even if the HTML button ever gets hidden
+  // by a layout quirk inside the WebView.
+  window.__peciToggleTrajectory = function () { toggleSdk(); };
+  window.__peciStartTrajectory  = function () { return startSdk(); };
+  window.__peciStopTrajectory   = function () { return stopSdk(); };
+  window.__peciResetTrajectory  = function () { document.getElementById("btn-reset").click(); };
+  window.__peciIsRunning = function () { return !!isRunning; };
+</script>
+
+<!-- Load motiondna.js in a SEPARATE script block so window.Module and the
+     global receive/receivePath/reportStatus functions are fully installed
+     before the SDK bootstraps (matches navisens/hello-world-web pattern). -->
+<script>
+  (function () {
+    const elStatus = document.getElementById("status");
+    const setStatus = (txt, cls) => {
+      elStatus.textContent = txt;
+      elStatus.className = "status" + (cls ? " " + cls : "");
+    };
+    setStatus("loading sdk...");
+    const cacheBuster = String(Date.now());
+    const url = "https://www.navisens.com/web-sdk/motiondna.js?v=" + encodeURIComponent(cacheBuster);
+    const s = document.createElement("script");
+    s.async = true;
+    s.src = url;
+    s.onerror = () => {
+      setStatus("failed to load sdk — check internet", "error");
+      if (window.Android && window.Android.onNavisensEvent) {
+        try { window.Android.onNavisensEvent("error", JSON.stringify({ message: "failed to load motiondna.js" })); } catch (e) {}
+      }
+    };
+    document.body.appendChild(s);
+  })();
+</script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+# Android Studio / IntelliJ
+*.iml
+.idea/
+
+# Gradle / Android build outputs
+.gradle/
+**/build/
+build/
+.externalNativeBuild/
+.cxx/
+captures/
+
+# Local machine and credentials
+local.properties
+*.jks
+*.keystore
+keystore.properties
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Generated packages
+*.apk
+*.aab

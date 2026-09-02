@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Declarado pelo Wear Data Layer para que o watch consiga resolver
+         este nó (telemóvel) por capability. -->
+    <string-array name="android_wear_capabilities">
+        <item>peci_phone_app</item>
+    </string-array>
+</resources>
