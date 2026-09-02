@@ -1,6 +1,19 @@
 # PECI Wearables — Android research snapshot
 
 This repository contains the smartphone hub application and its Wear OS companion.
+
+### Citation
+
+If you find this code useful in your research, please consider citing:
+
+```bibtex
+@INPROCEEDINGS{Tavares2026,
+    author={Guilherme Tavares and Rafael Soares and André Clérigo and Gonçalo Silva and Gabriel Silva and Tomás Cruz and João Abrunhosa and Pedro Laredo and Pedro Rito and Susana Sargento},
+    booktitle={2026 IEEE 29th International Symposium on Personal, Indoor and Mobile Radio Communications (WPMC)},
+    title={WearMux: Real-Time Multimodal Sensing and Feedback across Heterogeneous Wearables}
+}
+```
+
 ## Repository contents
 
 ```text
