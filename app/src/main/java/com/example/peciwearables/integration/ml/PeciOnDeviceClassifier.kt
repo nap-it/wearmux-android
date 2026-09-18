@@ -2,8 +2,6 @@ package com.example.peciwearables.integration.ml
 
 import android.content.Context
 import com.example.peciwearables.integration.protocol.ImuSample
-import org.tensorflow.lite.DataType
-import org.tensorflow.lite.Interpreter
 import java.io.Closeable
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -13,6 +11,8 @@ import kotlin.math.cos
 import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.math.sqrt
+import org.tensorflow.lite.DataType
+import org.tensorflow.lite.Interpreter
 
 class PeciOnDeviceClassifier(
     context: Context,

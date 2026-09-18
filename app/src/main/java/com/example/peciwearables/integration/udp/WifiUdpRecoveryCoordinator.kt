@@ -2,14 +2,14 @@ package com.example.peciwearables.integration.udp
 
 import android.util.Log
 import com.example.peciwearables.integration.GlassesConnectionMode
-import com.example.peciwearables.integration.ble.BleDeviceState
-import com.example.peciwearables.integration.ble.devices.omi.OmiGlassesBleClientApi
+import com.example.peciwearables.integration.adapters.BleDeviceState
+import com.example.peciwearables.integration.adapters.devices.omi.OmiGlassesBleClientApi
 import com.example.peciwearables.integration.network.UdpWifiLock
+import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.util.concurrent.atomic.AtomicReference
 
 class WifiUdpRecoveryCoordinator(
     private val scope: CoroutineScope,

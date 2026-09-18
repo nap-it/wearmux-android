@@ -1,5 +1,6 @@
 package com.example.peciwearables.ui
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -36,8 +37,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import android.widget.Toast
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,6 +44,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -57,7 +57,7 @@ import com.example.peciwearables.integration.GlassesConnectionMode
 import com.example.peciwearables.integration.GlassesNetworkStatusResolver
 import com.example.peciwearables.integration.GlassesSettingsStore
 import com.example.peciwearables.integration.MlProcessingLocation
-import com.example.peciwearables.integration.ble.BleDeviceState
+import com.example.peciwearables.integration.adapters.BleDeviceState
 
 @Composable
 fun SettingsScreen(viewModel: AppViewModel) {

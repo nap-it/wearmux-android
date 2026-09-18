@@ -1,7 +1,7 @@
 package com.example.peciwearables.integration
 
 import android.util.Log
-import com.example.peciwearables.integration.ble.BleDeviceState
+import com.example.peciwearables.integration.adapters.BleDeviceState
 import com.example.peciwearables.integration.protocol.GlassesImuSample
 import com.example.peciwearables.integration.protocol.ImuSample
 import com.example.peciwearables.integration.safety.CloudSafetyDecision
@@ -16,7 +16,7 @@ private const val TAG = "WearableService"
 
 internal fun WearableService.handleGlassesPhoto(jpegBytes: ByteArray, orientation: Int) {
     notePhotoPayloadArrival()
-    latestCameraJpeg = jpegBytes
+    latestCameraJpeg = jpegBytes; latestCameraJpegAtMs = timestamper.now()
     serviceScope.launch(Dispatchers.Default) {
         val bitmap = runCatching { android.graphics.BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size) }
             .onFailure { withContext(Dispatchers.Main) { WearableService.appendLog("Photo: decode error: ${it.message}") } }
@@ -29,13 +29,13 @@ internal fun WearableService.handleGlassesPhoto(jpegBytes: ByteArray, orientatio
 }
 
 internal fun WearableService.handleStreamingJpeg(jpegBytes: ByteArray) {
-    latestCameraJpeg = jpegBytes
+    latestCameraJpeg = jpegBytes; latestCameraJpegAtMs = timestamper.now()
     serviceScope.launch(Dispatchers.Default) {
         try {
             val bitmap = android.graphics.BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size) ?: return@launch
             WearableService._latestCameraBitmap.value = bitmap
             WearableService._isStreaming.value = true
-            com.example.peciwearables.integration.image.camera.recordStreamFrameArrival(
+            com.example.peciwearables.integration.modules.camera.recordStreamFrameArrival(
                 streamFpsTimestamps, WearableService._streamFps, WearableService._streamFrameCount, WearableService._lastFrameTimestampMs,
             )
             publishCapturedPhoto(bitmap)

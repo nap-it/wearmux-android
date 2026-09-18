@@ -9,15 +9,20 @@ import com.example.peciwearables.Detection
  * Permite alternar entre processamento local (ONNX/TFLite) e cloud (HTTP).
  */
 interface InferenceBackend {
-    suspend fun runDetection(frame: Bitmap): List<Detection>
+    /**
+     * [observedAtMs] é o carimbo do [com.example.peciwearables.integration.observation.Timestamper]
+     * aplicado quando o frame saiu da aquisição; `null` quando o pedido nasce
+     * no próprio instante (UI). Backends locais ignoram-no.
+     */
+    suspend fun runDetection(frame: Bitmap, observedAtMs: Long? = null): List<Detection>
 
     // Overload que evita decode+encode quando os bytes JPEG já estão disponíveis.
     // Por omissão faz decode para Bitmap e delega — backends cloud devem sobrepor.
-    suspend fun runDetection(jpeg: ByteArray): List<Detection> {
+    suspend fun runDetection(jpeg: ByteArray, observedAtMs: Long? = null): List<Detection> {
         val bitmap = BitmapFactory.decodeByteArray(jpeg, 0, jpeg.size)
             ?: return emptyList()
         return try {
-            runDetection(bitmap)
+            runDetection(bitmap, observedAtMs)
         } finally {
             bitmap.recycle()
         }

@@ -1,6 +1,6 @@
 package com.example.peciwearables.integration.safety
 
-import com.example.peciwearables.integration.sensors.PhoneGpsLocation
+import com.example.peciwearables.integration.modules.android.PhoneGpsLocation
 
 /** UC1.1 legacy local — sobrevive só para os testes; produção avalia na cloud. */
 @Deprecated("UC1.1 is evaluated in the cloud (fusion_engine). Kept only for legacy tests.")

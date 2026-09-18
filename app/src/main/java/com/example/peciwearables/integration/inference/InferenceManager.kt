@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.util.Log
 import com.example.peciwearables.Detection
 import com.example.peciwearables.integration.CloudConfig
+import com.example.peciwearables.integration.api.CloudInferenceBackend
 import com.example.peciwearables.integration.latency.LatencyCsvWriter
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -56,18 +57,19 @@ class InferenceManager(
         return backend
     }
 
-    suspend fun detect(frame: Bitmap): List<Detection> {
+    /** [observedAtMs]: carimbo do Timestamper à saída da aquisição do frame. */
+    suspend fun detect(frame: Bitmap, observedAtMs: Long? = null): List<Detection> {
         return try {
-            getOrCreateBackend().runDetection(frame)
+            getOrCreateBackend().runDetection(frame, observedAtMs)
         } catch (e: Exception) {
             Log.e(TAG, "Detection failed: ${e.message}")
             emptyList()
         }
     }
 
-    suspend fun detect(jpeg: ByteArray): List<Detection> {
+    suspend fun detect(jpeg: ByteArray, observedAtMs: Long? = null): List<Detection> {
         return try {
-            getOrCreateBackend().runDetection(jpeg)
+            getOrCreateBackend().runDetection(jpeg, observedAtMs)
         } catch (e: Exception) {
             Log.e(TAG, "Detection failed: ${e.message}")
             emptyList()

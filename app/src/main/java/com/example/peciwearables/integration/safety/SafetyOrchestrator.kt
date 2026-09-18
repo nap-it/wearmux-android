@@ -1,6 +1,7 @@
 package com.example.peciwearables.integration.safety
 
 import android.util.Log
+import com.example.peciwearables.integration.output.OutputDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -9,7 +10,7 @@ import kotlinx.coroutines.launch
 class SafetyOrchestrator(
     private val scope: CoroutineScope,
     private val feed: SafetyDecisionFeed,
-    private val outputs: SafetyOutputs,
+    private val outputs: OutputDispatcher,
     private val gates: SafetyGates,
     private val onDispatched: (CloudSafetyDecision) -> Unit = {},
 ) {

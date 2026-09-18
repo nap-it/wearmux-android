@@ -1,8 +1,8 @@
 package com.example.peciwearables.integration.safety
 
+import com.example.peciwearables.integration.modules.android.PhoneAccelSample
 import com.example.peciwearables.integration.protocol.GlassesImuSample
 import com.example.peciwearables.integration.protocol.ImuSample
-import com.example.peciwearables.integration.sensors.PhoneAccelSample
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.SharedFlow

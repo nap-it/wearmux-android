@@ -1,10 +1,12 @@
 package com.example.peciwearables.integration.ml
 
 import com.example.peciwearables.integration.MlProcessingLocation
-import com.example.peciwearables.integration.ble.BleDeviceState
-import com.example.peciwearables.integration.ble.devices.brilliantsole.BrilliantSoleWristbandBleClient
-import com.example.peciwearables.integration.ble.devices.brilliantsole.TFLITE_TASK_CLASSIFICATION
-import com.example.peciwearables.integration.ble.devices.brilliantsole.BrilliantSoleWristbandBleClientApi
+import com.example.peciwearables.integration.adapters.BleDeviceState
+import com.example.peciwearables.integration.adapters.devices.brilliantsole.BrilliantSoleWristbandBleClient
+import com.example.peciwearables.integration.adapters.devices.brilliantsole.BrilliantSoleWristbandBleClientApi
+import com.example.peciwearables.integration.adapters.devices.brilliantsole.TFLITE_TASK_CLASSIFICATION
+import com.example.peciwearables.integration.api.PeciServerClassifier
+import com.example.peciwearables.integration.modules.sensors.SensorRatePolicy
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -61,8 +63,10 @@ class MlProcessingCoordinator(
                 appendLog("❌ Wristband mode cancelled: model was not installed")
                 return@launch
             }
+            val rateMs = SensorRatePolicy.wristbandRateMs(MlProcessingLocation.WRISTBAND, contended = false)
             client.setSensorsConfig(
-                rateMs = 10, includeMagnetometer = false,
+                rateMs = rateMs,
+                includeMagnetometer = SensorRatePolicy.includeMagnetometer(MlProcessingLocation.WRISTBAND),
                 includePressure = false, includeLinearAcceleration = true,
             )
             client.setTfliteSampleRate(100)
@@ -71,7 +75,7 @@ class MlProcessingCoordinator(
             client.setTfliteSensorTypes(byteArrayOf(3, 4))
             client.setTfliteThreshold(0f)
             client.enableTfliteInferencing()
-            onWristbandRateApplied(10)
+            onWristbandRateApplied(rateMs)
             appendLog("🧠  ML mode = wristband (100Hz, on-device inference) [$reason]")
         }
     }

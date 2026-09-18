@@ -1,7 +1,7 @@
 package com.example.peciwearables.integration.safety
 
-import com.example.peciwearables.integration.ble.BleDeviceState
-import com.example.peciwearables.integration.watch.WatchClient
+import com.example.peciwearables.integration.adapters.BleDeviceState
+import com.example.peciwearables.integration.modules.wearos.WatchClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch

@@ -1,18 +1,18 @@
 package com.example.peciwearables.integration.diagnostics
 
-import com.example.peciwearables.integration.audio.AudioPipeline
-import com.example.peciwearables.integration.image.BleCameraPipeline
-import com.example.peciwearables.integration.image.ImagePipeline
+import com.example.peciwearables.integration.modules.camera.BleCameraPipeline
+import com.example.peciwearables.integration.modules.camera.ImagePipeline
+import com.example.peciwearables.integration.modules.microphone.AudioPipeline
 import com.example.peciwearables.integration.safety.SafetyDiagnostics
 import com.example.peciwearables.integration.sync.TimeSyncManager
 import com.example.peciwearables.integration.udp.UdpServer
+import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Encapsula:

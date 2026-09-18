@@ -1,9 +1,9 @@
 package com.example.peciwearables.telemetry
 
-import com.example.peciwearables.integration.telemetry.TelemetryReporter
+import com.example.peciwearables.integration.consumer.TelemetryReporter
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class TelemetryReporterPayloadTest {

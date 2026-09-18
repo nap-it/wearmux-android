@@ -1,11 +1,11 @@
 package com.example.peciwearables.integration.safety
 
 import com.example.peciwearables.Detection
-import com.example.peciwearables.integration.atcll.AtcllClient
+import com.example.peciwearables.integration.api.AtcllClient
 import com.example.peciwearables.integration.depth.DepthResult
+import com.example.peciwearables.integration.modules.android.PhoneGpsLocation
 import com.example.peciwearables.integration.protocol.GlassesImuSample
 import com.example.peciwearables.integration.protocol.ImuSample
-import com.example.peciwearables.integration.sensors.PhoneGpsLocation
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue

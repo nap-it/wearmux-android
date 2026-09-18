@@ -14,7 +14,7 @@ class LocalInferenceBackend(context: Context) : InferenceBackend {
 
     private val detector = YoloDetector(context)
 
-    override suspend fun runDetection(frame: Bitmap): List<Detection> =
+    override suspend fun runDetection(frame: Bitmap, observedAtMs: Long?): List<Detection> =
         withContext(Dispatchers.Default) {
             detector.detect(frame)
         }

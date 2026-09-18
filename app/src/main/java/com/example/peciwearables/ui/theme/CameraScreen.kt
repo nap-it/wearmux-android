@@ -7,7 +7,6 @@ import android.util.Log
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
-import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -35,27 +34,27 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.peciwearables.integration.CameraSource
 import com.example.peciwearables.integration.WearableService
-import com.example.peciwearables.integration.audio.TextToSpeechEngine
+import com.example.peciwearables.integration.adapters.BleDeviceState
 import com.example.peciwearables.integration.depth.DepthManager
 import com.example.peciwearables.integration.depth.DepthRenderer
 import com.example.peciwearables.integration.depth.DepthResult
 import com.example.peciwearables.integration.depth.DepthVisualizationMode
 import com.example.peciwearables.integration.inference.InferenceManager
+import com.example.peciwearables.integration.modules.android.PhoneCameraSource
+import com.example.peciwearables.integration.modules.android.TextToSpeechEngine
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
-import com.example.peciwearables.integration.CameraSource
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.launch
 import java.util.Locale
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
-
-import com.example.peciwearables.integration.ble.BleDeviceState
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 
 private enum class CameraSource { PHONE, GLASSES }
 private enum class DepthUIMode { OFF, RELATIVE, ABSOLUTE }
@@ -115,7 +114,7 @@ fun CameraScreen(viewModel: AppViewModel) {
     var colormapEnabled by remember { mutableStateOf(true) }
 
     val isActive = remember { mutableStateOf(true) }
-    var cameraProvider by remember { mutableStateOf<ProcessCameraProvider?>(null) }
+    val phoneCamera = remember(context, executor) { PhoneCameraSource(context, executor) }
 
     val displayMetrics = context.resources.displayMetrics
     val screenW = displayMetrics.widthPixels.toFloat()
@@ -175,7 +174,7 @@ fun CameraScreen(viewModel: AppViewModel) {
     LaunchedEffect(cameraSource) {
         WearableService.updateCameraSource(cameraSource)
         if (cameraSource == CameraSource.GLASSES) {
-            cameraProvider?.unbindAll()
+            phoneCamera.unbind()
             if (!yoloEnabled || latestCameraBitmap == null) detections.value = emptyList()
             if (!depthEnabled || latestCameraBitmap == null) depthResult.value = null
         }
@@ -214,7 +213,7 @@ fun CameraScreen(viewModel: AppViewModel) {
     DisposableEffect(Unit) {
         onDispose {
             isActive.value = false
-            cameraProvider?.unbindAll()
+            phoneCamera.unbind()
             executor.shutdown()
             executor.awaitTermination(500, TimeUnit.MILLISECONDS)
             if (inferenceManager === fallbackInferenceManager) inferenceManager.close()
@@ -235,75 +234,33 @@ fun CameraScreen(viewModel: AppViewModel) {
                 AndroidView(
                     factory = { ctx ->
                         val previewView = PreviewView(ctx)
-                        val future = ProcessCameraProvider.getInstance(ctx)
-
-                        future.addListener({
-                            val provider = future.get()
-                            cameraProvider = provider
-
-                            val preview = Preview.Builder().build().also {
-                                it.setSurfaceProvider(previewView.surfaceProvider)
-                            }
-
-                            val imageAnalysis = ImageAnalysis.Builder()
-                                .setTargetResolution(android.util.Size(640, 640))
-                                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                                .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
-                                .build()
-
-                            imageAnalysis.setAnalyzer(executor) { imageProxy ->
-                                try {
-                                    if (!isActive.value) return@setAnalyzer
-                                    val needBitmap = yoloEnabled || depthEnabled
-                                    val bitmap = if (needBitmap) imageProxy.toBitmap() else null
-                                    if (bitmap != null) {
-                                        com.example.peciwearables.integration.WearableService.updatePhoneCameraBitmap(bitmap)
+                        phoneCamera.bind(
+                            lifecycleOwner = lifecycleOwner,
+                            previewView = previewView,
+                            needsFrame = { isActive.value && (yoloEnabled || depthEnabled) },
+                            onFrame = { bitmap, observedAtMs ->
+                                if (yoloEnabled && phoneInferenceInFlight.compareAndSet(false, true)) {
+                                    scope.launch(Dispatchers.Default) {
+                                        try {
+                                            val result = inferenceManager.detect(bitmap, observedAtMs)
+                                            if (isActive.value) mainHandler.post {
+                                                if (isActive.value) detections.value = result
+                                            }
+                                        } finally { phoneInferenceInFlight.set(false) }
                                     }
-
-                                    if (yoloEnabled && bitmap != null &&
-                                        phoneInferenceInFlight.compareAndSet(false, true)
-                                    ) {
-                                        scope.launch(Dispatchers.Default) {
-                                            try {
-                                                val result = inferenceManager.detect(bitmap)
-                                                if (isActive.value) mainHandler.post {
-                                                    if (isActive.value) detections.value = result
-                                                }
-                                            } finally { phoneInferenceInFlight.set(false) }
-                                        }
-                                    } else if (!yoloEnabled) {
-                                        detections.value = emptyList()
-                                    }
-
-                                    if (depthEnabled && bitmap != null &&
-                                        phoneDepthInFlight.compareAndSet(false, true)
-                                    ) {
-                                        scope.launch(Dispatchers.Default) {
-                                            try {
-                                                val result = depthManager.estimateDepth(bitmap)
-                                                if (isActive.value) mainHandler.post {
-                                                    if (isActive.value) depthResult.value = result
-                                                }
-                                            } finally { phoneDepthInFlight.set(false) }
-                                        }
-                                    } else if (!depthEnabled) {
-                                        depthResult.value = null
-                                    }
-                                } catch (e: Exception) {
-                                    Log.e("CameraScreen", "Frame analysis error: ${e.message}")
-                                    phoneInferenceInFlight.set(false)
-                                    phoneDepthInFlight.set(false)
-                                } finally {
-                                    imageProxy.close()
                                 }
-                            }
-
-                            provider.unbindAll()
-                            provider.bindToLifecycle(
-                                lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, preview, imageAnalysis
-                            )
-                        }, ContextCompat.getMainExecutor(ctx))
-
+                                if (depthEnabled && phoneDepthInFlight.compareAndSet(false, true)) {
+                                    scope.launch(Dispatchers.Default) {
+                                        try {
+                                            val result = depthManager.estimateDepth(bitmap, observedAtMs)
+                                            if (isActive.value) mainHandler.post {
+                                                if (isActive.value) depthResult.value = result
+                                            }
+                                        } finally { phoneDepthInFlight.set(false) }
+                                    }
+                                }
+                            },
+                        )
                         previewView
                     },
                     modifier = Modifier.fillMaxSize()

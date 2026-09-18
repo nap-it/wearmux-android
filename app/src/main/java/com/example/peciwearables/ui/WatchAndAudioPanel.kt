@@ -31,8 +31,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.peciwearables.AppViewModel
 import com.example.peciwearables.Constants
 import com.example.peciwearables.integration.NavisensImuSource
-import com.example.peciwearables.integration.audio.AudioTestEngine
-import com.example.peciwearables.integration.watch.WatchClient
+import com.example.peciwearables.integration.modules.android.AudioTestEngine
+import com.example.peciwearables.integration.modules.wearos.WatchClient
 
 private val cardBg get() = Constants.cardBackground
 private val textPrimary get() = Constants.primaryTextColor

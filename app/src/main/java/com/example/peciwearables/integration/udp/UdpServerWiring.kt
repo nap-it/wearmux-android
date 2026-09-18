@@ -1,9 +1,9 @@
 package com.example.peciwearables.integration.udp
 
 import android.util.Log
-import com.example.peciwearables.integration.audio.AudioPipeline
-import com.example.peciwearables.integration.image.ImagePipeline
-import com.example.peciwearables.integration.managers.GlassesMicrophoneManager
+import com.example.peciwearables.integration.modules.camera.ImagePipeline
+import com.example.peciwearables.integration.modules.microphone.AudioPipeline
+import com.example.peciwearables.integration.modules.microphone.GlassesMicrophoneManager
 import com.example.peciwearables.integration.protocol.ImuSample
 import com.example.peciwearables.integration.sync.TimeSyncManager
 import kotlinx.coroutines.CoroutineScope

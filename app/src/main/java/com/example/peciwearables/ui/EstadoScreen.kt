@@ -29,9 +29,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.peciwearables.AppViewModel
 import com.example.peciwearables.Constants
 import com.example.peciwearables.integration.GlassesConnectionMode
-import com.example.peciwearables.integration.ble.BleDeviceState
-import com.example.peciwearables.integration.image.camera.CameraStreamStatus
-import com.example.peciwearables.integration.watch.WatchClient
+import com.example.peciwearables.integration.adapters.BleDeviceState
+import com.example.peciwearables.integration.modules.camera.CameraStreamStatus
+import com.example.peciwearables.integration.modules.wearos.WatchClient
 
 /**
  * Aba "Estado": resumo de saúde do sistema — stream de câmara, microfone, IMU,

@@ -1,6 +1,6 @@
 package com.example.peciwearables.integration.transfer
 
-import com.example.peciwearables.integration.image.camera.CameraMetrics
+import com.example.peciwearables.integration.modules.camera.CameraMetrics
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder

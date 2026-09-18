@@ -3,12 +3,12 @@ package com.example.peciwearables.integration.transfer
 import com.example.peciwearables.integration.protocol.tlv.TlvParser
 import com.example.peciwearables.integration.protocol.tlv.TlvWriter
 import com.example.peciwearables.integration.protocol.tlv.TxRxMessageType
-import org.junit.Assert.*
-import org.junit.Before
-import org.junit.Test
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.zip.CRC32
+import org.junit.Assert.*
+import org.junit.Before
+import org.junit.Test
 
 
 class FileTransferHandlerTest {

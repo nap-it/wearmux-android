@@ -2,7 +2,10 @@ package com.example.peciwearables.integration.safety
 
 import android.graphics.Bitmap
 import android.util.Log
-import com.example.peciwearables.integration.audio.TextToSpeechEngine
+import com.example.peciwearables.integration.modules.android.TextToSpeechEngine
+import com.example.peciwearables.integration.observation.Timestamper
+import java.io.ByteArrayOutputStream
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -11,11 +14,12 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
-import java.io.ByteArrayOutputStream
-import java.util.concurrent.TimeUnit
 
 
-class VisualAssistantEvaluator(private val tts: TextToSpeechEngine) {
+class VisualAssistantEvaluator(
+    private val tts: TextToSpeechEngine,
+    private val timestamper: Timestamper = Timestamper.SYSTEM,
+) {
     companion object {
         private const val TAG = "VisualAssistant"
         private val JPEG_MEDIA_TYPE = "image/jpeg".toMediaType()
@@ -26,15 +30,25 @@ class VisualAssistantEvaluator(private val tts: TextToSpeechEngine) {
             .build()
     }
 
-    suspend fun analyzeAndSpeak(image: Bitmap, intentContext: String = "front", cloudUrl: String) {
+    suspend fun analyzeAndSpeak(
+        image: Bitmap,
+        intentContext: String = "front",
+        cloudUrl: String,
+        observedAtMs: Long? = null,
+    ) {
         withContext(Dispatchers.IO) {
-            val text = fetchFromCloud(baseUrlOf(cloudUrl), image, intentContext)
+            val text = fetchFromCloud(baseUrlOf(cloudUrl), image, intentContext, observedAtMs)
             Log.i(TAG, "UC4.1 response: $text")
             tts.speak(text, flush = true)
         }
     }
 
-    private fun fetchFromCloud(baseUrl: String, image: Bitmap, intentContext: String): String {
+    private fun fetchFromCloud(
+        baseUrl: String,
+        image: Bitmap,
+        intentContext: String,
+        observedAtMs: Long?,
+    ): String {
         if (baseUrl.isBlank()) return "The cloud is not configured."
         return try {
             val baos = ByteArrayOutputStream()
@@ -43,7 +57,7 @@ class VisualAssistantEvaluator(private val tts: TextToSpeechEngine) {
                 .setType(MultipartBody.FORM)
                 .addFormDataPart("image", "frame.jpg", baos.toByteArray().toRequestBody(JPEG_MEDIA_TYPE))
                 .addFormDataPart("intent", intentContext)
-                .addFormDataPart("hub_timestamp", System.currentTimeMillis().toString())
+                .addFormDataPart("hub_timestamp", timestamper.hubTimestampFor(observedAtMs).toString())
                 .build()
             val request = Request.Builder().url("$baseUrl/inputs/visual_assistant").post(body).build()
             client.newCall(request).execute().use { resp ->

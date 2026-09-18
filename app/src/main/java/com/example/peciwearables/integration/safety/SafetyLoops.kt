@@ -3,26 +3,28 @@ package com.example.peciwearables.integration.safety
 import android.graphics.Bitmap
 import android.util.Log
 import com.example.peciwearables.Detection
-import com.example.peciwearables.integration.audio.AmbientSoundClassifier
-import com.example.peciwearables.integration.audio.TextToSpeechEngine
 import com.example.peciwearables.integration.depth.DepthManager
 import com.example.peciwearables.integration.inference.InferenceManager
-import com.example.peciwearables.integration.stt.whisper.WhisperSegment
-import com.example.peciwearables.integration.watch.WatchClient
-import com.example.peciwearables.integration.watch.WatchProtocol
+import com.example.peciwearables.integration.modules.android.TextToSpeechEngine
+import com.example.peciwearables.integration.modules.microphone.AmbientSoundClassifier
+import com.example.peciwearables.integration.modules.microphone.stt.WhisperSegment
+import com.example.peciwearables.integration.modules.wearos.WatchClient
+import com.example.peciwearables.integration.modules.wearos.WatchProtocol
+import java.text.Normalizer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import java.text.Normalizer
 
 /** UC1.2 — Veículo a aproximar (YOLO + Depth Anything) a 4 Hz. */
 class Uc12Loop(
     private val enabled: () -> Boolean,
     private val latestJpeg: () -> ByteArray?,
+    private val latestJpegAtMs: () -> Long,
     private val latestBitmap: () -> Bitmap?,
+    private val frameObservedAtMs: () -> Long,
     private val inferenceManager: InferenceManager,
     private val depthManager: DepthManager,
     private val evaluator: VehicleApproachEvaluator,
@@ -36,11 +38,12 @@ class Uc12Loop(
         while (true) {
             if (enabled()) {
                 val jpeg = latestJpeg(); val frame = latestBitmap()
+                val jpegAtMs = latestJpegAtMs(); val frameAtMs = frameObservedAtMs()
                 if (jpeg != null && frame != null) {
                     try {
                         coroutineScope {
-                            val detectionsDeferred = async { inferenceManager.detect(jpeg) }
-                            val depthDeferred = async { depthManager.estimateDepth(frame) }
+                            val detectionsDeferred = async { inferenceManager.detect(jpeg, jpegAtMs) }
+                            val depthDeferred = async { depthManager.estimateDepth(frame, frameAtMs) }
 
                             val detections = detectionsDeferred.await()
                             onDetections(detections)          // notifica o fusion engine mal o YOLO termina
@@ -72,6 +75,7 @@ class Uc14StrictLoop(
     private val enabled: () -> Boolean,
     private val cyclistMode: () -> CyclistModeDetector.Mode,
     private val latestBitmap: () -> Bitmap?,
+    private val frameObservedAtMs: () -> Long,
     private val inferenceManager: InferenceManager,
     private val depthManager: DepthManager,
     private val evaluator: CyclistVehicleAlertEvaluator,
@@ -83,10 +87,11 @@ class Uc14StrictLoop(
         while (true) {
             if (enabled() && cyclistMode() == CyclistModeDetector.Mode.CYCLING) {
                 val frame = latestBitmap()
+                val frameAtMs = frameObservedAtMs()
                 if (frame != null) try {
                     coroutineScope {
-                        val detectionsDeferred = async { inferenceManager.detect(frame) }
-                        val depthDeferred = async { depthManager.estimateDepth(frame) }
+                        val detectionsDeferred = async { inferenceManager.detect(frame, frameAtMs) }
+                        val depthDeferred = async { depthManager.estimateDepth(frame, frameAtMs) }
 
                         val detections = detectionsDeferred.await()
                         val depth = depthDeferred.await()
@@ -152,6 +157,7 @@ class Uc45Loop(
 class Uc41Loop(
     private val transcription: StateFlow<List<WhisperSegment>>,
     private val frameProvider: () -> Bitmap?,
+    private val frameObservedAtMs: () -> Long,
     private val evaluator: VisualAssistantEvaluator,
     private val cloudUrl: () -> String,
     private val tts: TextToSpeechEngine,
@@ -185,6 +191,7 @@ class Uc41Loop(
                     image = bitmap,
                     intentContext = if (normalized.contains("hand") || normalized.contains("holding") || normalized.contains("mao")) "hand" else "front",
                     cloudUrl = cloudUrl(),
+                    observedAtMs = frameObservedAtMs(),
                 )
             } else {
                 tts.speak("The camera is not active.")

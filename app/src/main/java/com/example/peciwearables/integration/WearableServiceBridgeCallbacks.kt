@@ -1,7 +1,7 @@
 package com.example.peciwearables.integration
 
-import com.example.peciwearables.integration.ble.BleDeviceState
-import com.example.peciwearables.integration.wearable.legacy.WearableServiceLegacyBridge
+import com.example.peciwearables.integration.adapters.BleDeviceState
+import com.example.peciwearables.integration.adapters.legacy.WearableServiceLegacyBridge
 import kotlinx.coroutines.flow.update
 
 
@@ -47,7 +47,7 @@ internal fun WearableService.onWristbandStateChanged(state: BleDeviceState) {
 
 internal fun WearableService.setupWearableLegacyBridge() {
     wearableBridge?.stop()
-    wearableBridge = WearableServiceLegacyBridge(wearableHub, serviceScope, WearableServiceLegacyBridge.Callbacks(
+    wearableBridge = WearableServiceLegacyBridge(deviceHub, serviceScope, WearableServiceLegacyBridge.Callbacks(
         onGlassesState = ::onGlassesStateChanged,
         onGlassesBattery = { WearableService._glassesBattery.value = it },
         onGlassesFirmware = { WearableService._glassesFirmware.value = it },

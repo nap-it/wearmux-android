@@ -42,10 +42,10 @@ import com.example.peciwearables.Constants
 import com.example.peciwearables.integration.CloudConfig
 import com.example.peciwearables.integration.MlProcessingLocation
 import com.example.peciwearables.integration.inference.InferenceMode
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
 import java.net.URL
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 
 @Composable

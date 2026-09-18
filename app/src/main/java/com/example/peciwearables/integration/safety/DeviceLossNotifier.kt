@@ -1,8 +1,8 @@
 package com.example.peciwearables.integration.safety
 
 import android.content.Context
-import com.example.peciwearables.integration.watch.WatchClient
-import com.example.peciwearables.integration.watch.WatchProtocol
+import com.example.peciwearables.integration.modules.wearos.WatchClient
+import com.example.peciwearables.integration.modules.wearos.WatchProtocol
 
 /** Notifica perda de wearable: Toast + watch DOUBLE vibrate + WARNING + EventBus. */
 class DeviceLossNotifier(

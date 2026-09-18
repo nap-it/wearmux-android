@@ -1,8 +1,8 @@
 package com.example.peciwearables.integration.communication
 
+import java.util.concurrent.atomic.AtomicReference
 import org.junit.Assert.*
 import org.junit.Test
-import java.util.concurrent.atomic.AtomicReference
 
 class UdpSessionStateTest {
 

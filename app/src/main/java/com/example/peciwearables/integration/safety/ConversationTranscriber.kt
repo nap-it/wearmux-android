@@ -1,7 +1,7 @@
 package com.example.peciwearables.integration.safety
 
-import com.example.peciwearables.integration.audio.TextToSpeechEngine
-import com.example.peciwearables.integration.stt.whisper.WhisperSegment
+import com.example.peciwearables.integration.modules.android.TextToSpeechEngine
+import com.example.peciwearables.integration.modules.microphone.stt.WhisperSegment
 
 
 class ConversationTranscriber(

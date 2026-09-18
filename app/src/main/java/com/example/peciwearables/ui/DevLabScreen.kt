@@ -32,7 +32,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.peciwearables.AppViewModel
 import com.example.peciwearables.CameraScreen
 import com.example.peciwearables.Constants
-import com.example.peciwearables.integration.image.camera.CameraStreamStatus
+import com.example.peciwearables.integration.modules.camera.CameraStreamStatus
 
 /**
  * Aba "Dev/Laboratório": ferramentas técnicas de teste e monitorização em
@@ -163,8 +163,8 @@ private fun AudioTab(viewModel: AppViewModel) {
         }
     }
 
-    val glassesActive = glassesState == com.example.peciwearables.integration.ble.BleDeviceState.READY ||
-        glassesState == com.example.peciwearables.integration.ble.BleDeviceState.CONNECTED
+    val glassesActive = glassesState == com.example.peciwearables.integration.adapters.BleDeviceState.READY ||
+        glassesState == com.example.peciwearables.integration.adapters.BleDeviceState.CONNECTED
 
     Column(
         modifier = Modifier

@@ -1,6 +1,7 @@
 package com.example.peciwearables.integration.safety
 
-import com.example.peciwearables.integration.sensors.PhoneGpsLocation
+import com.example.peciwearables.integration.api.OsmCrossingFetcher
+import com.example.peciwearables.integration.modules.android.PhoneGpsLocation
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job

@@ -8,23 +8,23 @@ import com.example.peciwearables.integration.AlertPreferencesStore
 import com.example.peciwearables.integration.BleConnectionCandidate
 import com.example.peciwearables.integration.CapturedPhoto
 import com.example.peciwearables.integration.DeveloperModeStore
+import com.example.peciwearables.integration.GlassesConnectionMode
+import com.example.peciwearables.integration.LatencySample
 import com.example.peciwearables.integration.MlProcessingLocation
 import com.example.peciwearables.integration.NavisensImuSource
-import com.example.peciwearables.integration.GlassesConnectionMode
 import com.example.peciwearables.integration.RecordedAudio
-import com.example.peciwearables.integration.LatencySample
 import com.example.peciwearables.integration.WearableService
 import com.example.peciwearables.integration.WearableServiceActions
-import com.example.peciwearables.integration.audio.AudioTestEngine
-import com.example.peciwearables.integration.watch.WatchClient
-import com.example.peciwearables.integration.ble.BleDeviceState
+import com.example.peciwearables.integration.adapters.BleDeviceState
 import com.example.peciwearables.integration.inference.InferenceMode
-import com.example.peciwearables.integration.pdr.PdrPosition
-import com.example.peciwearables.integration.pdr.SavedRoute
+import com.example.peciwearables.integration.modules.android.AudioTestEngine
+import com.example.peciwearables.integration.modules.context.PdrPosition
+import com.example.peciwearables.integration.modules.context.SavedRoute
+import com.example.peciwearables.integration.modules.microphone.stt.WhisperSegment
+import com.example.peciwearables.integration.modules.wearos.WatchClient
 import com.example.peciwearables.integration.protocol.GlassesImuSample
 import com.example.peciwearables.integration.protocol.ImuSample
 import com.example.peciwearables.integration.protocol.WristbandImuSample
-import com.example.peciwearables.integration.stt.whisper.WhisperSegment
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -124,7 +124,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     val streamFrameCount: StateFlow<Int> = WearableService.streamFrameCount
 
     // Estado agregado da stream de câmara dos óculos (Fase 2)
-    val cameraStreamHealth: StateFlow<com.example.peciwearables.integration.image.camera.CameraStreamHealth> =
+    val cameraStreamHealth: StateFlow<com.example.peciwearables.integration.modules.camera.CameraStreamHealth> =
         WearableService.cameraStreamHealth
     // Identificador/MAC da sessão de óculos atualmente ligada (Fase 2)
     val glassesConnectedAddress: StateFlow<String?> = WearableService.glassesConnectedAddress
@@ -136,7 +136,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     // Phone sensors / PDR / Route
     val phoneSensorsActive: StateFlow<Boolean> = WearableService.phoneSensorsActive
-    val phoneGps: StateFlow<com.example.peciwearables.integration.sensors.PhoneGpsLocation?> = WearableService.phoneGps
+    val phoneGps: StateFlow<com.example.peciwearables.integration.modules.android.PhoneGpsLocation?> = WearableService.phoneGps
     val pdrPosition: StateFlow<PdrPosition?> = WearableService.pdrPosition
     val pdrStepCount: StateFlow<Int> = WearableService.pdrStepCount
     val savedRoutes: StateFlow<List<SavedRoute>> = WearableService.savedRoutes
@@ -594,7 +594,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     val safetyUc4_3Enabled: StateFlow<Boolean> = WearableService.safetyUc4_3Enabled
     val safetyUc1_4Enabled: StateFlow<Boolean> = WearableService.safetyUc1_4Enabled
     val cyclistMode: StateFlow<com.example.peciwearables.integration.safety.CyclistModeDetector.Mode> = WearableService.cyclistMode
-    val atcllStatus: StateFlow<com.example.peciwearables.integration.atcll.AtcllClient.Status> = WearableService.atcllStatus
+    val atcllStatus: StateFlow<com.example.peciwearables.integration.api.AtcllClient.Status> = WearableService.atcllStatus
     val atcllEndpoint: StateFlow<String?> = WearableService.atcllEndpoint
     val unifiedServerUrl: StateFlow<String> = WearableService.unifiedServerUrl
 

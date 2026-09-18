@@ -2,12 +2,12 @@ package com.example.peciwearables.integration.udp
 
 import android.util.Log
 import com.example.peciwearables.integration.protocol.*
-import kotlinx.coroutines.*
-import kotlinx.coroutines.channels.Channel
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetAddress
 import java.net.SocketException
+import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
 
 /**
  * Wrapper para datagrama recebido com timestamp de receção.

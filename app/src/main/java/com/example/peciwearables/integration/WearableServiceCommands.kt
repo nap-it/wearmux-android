@@ -1,9 +1,10 @@
 package com.example.peciwearables.integration
 
-import com.example.peciwearables.integration.ble.BleDeviceState
-import com.example.peciwearables.integration.ble.GlassesMicrophoneProfile
-import com.example.peciwearables.integration.ble.WearableKind
-import com.example.peciwearables.integration.wearable.WearableCommand
+import com.example.peciwearables.integration.adapters.BleDeviceState
+import com.example.peciwearables.integration.adapters.WearableCommand
+import com.example.peciwearables.integration.hub.WearableKind
+import com.example.peciwearables.integration.modules.microphone.GlassesMicrophoneProfile
+import com.example.peciwearables.integration.modules.sensors.SensorRatePolicy
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -20,11 +21,12 @@ internal fun WearableService.setMlProcessingLocation(mode: MlProcessingLocation)
 internal fun WearableService.applyMlProcessingMode(mode: MlProcessingLocation, reason: String) =
     mlProcessingCoordinator.apply(mode, reason)
 
-internal fun WearableService.desiredWristbandSensorRateMs(): Int = when (WearableService._mlProcessingLocation.value) {
-    MlProcessingLocation.WRISTBAND -> 10
-    MlProcessingLocation.APP, MlProcessingLocation.SERVER ->
-        if (WearableService._glassesMicStreaming.value || WearableService._audioRecordingActive.value || photoCaptureInFlight) 200 else 50
-}
+internal fun WearableService.desiredWristbandSensorRateMs(): Int = SensorRatePolicy.wristbandRateMs(
+    location = WearableService._mlProcessingLocation.value,
+    contended = WearableService._glassesMicStreaming.value ||
+        WearableService._audioRecordingActive.value ||
+        photoCaptureInFlight,
+)
 
 /** FPS-alvo do stream: baixa quando há áudio activo (concorrência por canal). */
 internal fun WearableService.streamTargetFps(
@@ -39,7 +41,7 @@ internal fun WearableService.updateWristbandTrafficProfile(reason: String) {
     if (state != BleDeviceState.READY && state != BleDeviceState.CONNECTED) return
     val targetRate = desiredWristbandSensorRateMs()
     if (wristbandSensorRateAppliedMs == targetRate) return
-    val includeMagnetometer = WearableService._mlProcessingLocation.value != MlProcessingLocation.WRISTBAND
+    val includeMagnetometer = SensorRatePolicy.includeMagnetometer(WearableService._mlProcessingLocation.value)
     wristbandBleClient.setSensorsConfig(targetRate, includeMagnetometer, includePressure = false)
     wristbandSensorRateAppliedMs = targetRate
     WearableService.appendLog("BS sensors: imu=${targetRate}ms, mag=$includeMagnetometer ($reason)")
@@ -67,7 +69,7 @@ internal fun WearableService.disconnectGlasses() {
         wifiUdpRecovery.clearRouting()
         val id = currentGlassesSessionId()
         if (id != null) {
-            wearableHub.disconnect(id)            // remove a sessão + client.disconnect()
+            deviceHub.disconnect(id)            // remove a sessão + client.disconnect()
             glassesWearableAdapter.releaseClient(id)
         } else {
             glassesBleClient.disconnect()
@@ -85,7 +87,7 @@ internal fun WearableService.disconnectWristband() {
     serviceScope.launch {
         val id = currentWristbandSessionId()
         if (id != null) {
-            wearableHub.disconnect(id)
+            deviceHub.disconnect(id)
             wristbandWearableAdapter.releaseClient(id)
         } else {
             wristbandBleClient.disconnect()
@@ -171,4 +173,4 @@ internal fun WearableService.routeDeactivateInternal() = routeRecording.deactiva
 internal fun WearableService.routeDeleteInternal(id: String) = routeRecording.delete(id)
 
 internal fun WearableService.fusedToImuSample(s: com.example.peciwearables.integration.protocol.GlassesImuSample) =
-    com.example.peciwearables.integration.sensors.FusedImuConverter.toImuSample(s)
+    com.example.peciwearables.integration.modules.sensors.FusedImuConverter.toImuSample(s)

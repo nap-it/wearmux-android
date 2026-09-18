@@ -1,18 +1,18 @@
 package com.example.peciwearables.integration.safety
 
-import com.example.peciwearables.integration.atcll.AtcllClient
+import com.example.peciwearables.integration.adapters.BleDeviceState
+import com.example.peciwearables.integration.api.AtcllClient
 import com.example.peciwearables.integration.atcll.AtcllIncomingLoop
 import com.example.peciwearables.integration.atcll.AtcllOutgoingLoops
-import com.example.peciwearables.integration.audio.AmbientSoundClassifier
-import com.example.peciwearables.integration.audio.AudioTestEngine
-import com.example.peciwearables.integration.audio.TextToSpeechEngine
-import com.example.peciwearables.integration.ble.BleDeviceState
 import com.example.peciwearables.integration.depth.DepthManager
 import com.example.peciwearables.integration.inference.InferenceManager
-import com.example.peciwearables.integration.sensors.PhoneGpsLocation
-import com.example.peciwearables.integration.stt.whisper.WhisperSegment
-import com.example.peciwearables.integration.watch.WatchClient
-import com.example.peciwearables.integration.watch.WatchProtocol
+import com.example.peciwearables.integration.modules.android.AudioTestEngine
+import com.example.peciwearables.integration.modules.android.PhoneGpsLocation
+import com.example.peciwearables.integration.modules.android.TextToSpeechEngine
+import com.example.peciwearables.integration.modules.microphone.AmbientSoundClassifier
+import com.example.peciwearables.integration.modules.microphone.stt.WhisperSegment
+import com.example.peciwearables.integration.modules.wearos.WatchClient
+import com.example.peciwearables.integration.modules.wearos.WatchProtocol
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -60,8 +60,12 @@ class SafetyLoopsBuilder(
         val sendGoVibration: () -> Unit,
         val sendWaveformVibration: (Float) -> Unit,
         val latestJpeg: () -> ByteArray?,
+        /** Carimbo do Timestamper para [latestJpeg]. */
+        val latestJpegAtMs: () -> Long,
         val latestBitmap: () -> android.graphics.Bitmap?,
         val frameProvider: () -> android.graphics.Bitmap?,
+        /** Carimbo do Timestamper para o frame devolvido por [frameProvider]/[latestBitmap]. */
+        val frameObservedAtMs: () -> Long,
         val onDetections: (List<com.example.peciwearables.Detection>) -> Unit,
         val cloudUrlProvider: () -> String,
     )
@@ -97,7 +101,8 @@ class SafetyLoopsBuilder(
     fun wireVision() {
         Uc12Loop(
             enabled = gates.uc1_2Enabled,
-            latestJpeg = callbacks.latestJpeg, latestBitmap = callbacks.latestBitmap,
+            latestJpeg = callbacks.latestJpeg, latestJpegAtMs = callbacks.latestJpegAtMs,
+            latestBitmap = callbacks.latestBitmap, frameObservedAtMs = callbacks.frameObservedAtMs,
             inferenceManager = glassesInferenceManager, depthManager = depthManager,
             evaluator = vehicleApproachEvaluator,
             onDetections = callbacks.onDetections,
@@ -114,7 +119,7 @@ class SafetyLoopsBuilder(
         ).start(scope)
         Uc14StrictLoop(
             enabled = gates.uc1_4StrictEnabled, cyclistMode = { flows.cyclistMode.value },
-            latestBitmap = callbacks.latestBitmap,
+            latestBitmap = callbacks.latestBitmap, frameObservedAtMs = callbacks.frameObservedAtMs,
             inferenceManager = glassesInferenceManager, depthManager = depthManager,
             evaluator = cyclistVehicleAlert,
             onIntensityAlert = { d ->
@@ -126,6 +131,7 @@ class SafetyLoopsBuilder(
         Uc45Loop(gates.uc4_5Enabled, flows.whisperTranscription, conversationTranscriber).start(scope)
         Uc41Loop(
             transcription = flows.whisperTranscription, frameProvider = callbacks.frameProvider,
+            frameObservedAtMs = callbacks.frameObservedAtMs,
             evaluator = visualAssistantEvaluator, cloudUrl = callbacks.cloudUrlProvider,
             tts = ttsEngine, appendLog = appendLog,
         ).start(scope)

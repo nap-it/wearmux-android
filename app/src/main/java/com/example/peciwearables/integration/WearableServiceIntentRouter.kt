@@ -77,8 +77,8 @@ import com.example.peciwearables.integration.WearableServiceActions.EXTRA_TONE_F
 import com.example.peciwearables.integration.WearableServiceActions.EXTRA_VIBRATE_PATTERN
 import com.example.peciwearables.integration.WearableServiceActions.EXTRA_WATCH_RATE_HZ
 import com.example.peciwearables.integration.WearableServiceActions.EXTRA_WHISPER_HOST
-import com.example.peciwearables.integration.audio.AudioTestEngine
-import com.example.peciwearables.integration.ble.WearableKind
+import com.example.peciwearables.integration.hub.WearableKind
+import com.example.peciwearables.integration.modules.android.AudioTestEngine
 
 /** Routes Intent.action a um handler. Encapsula o body do `onStartCommand`. */
 internal fun WearableService.routeIntent(intent: Intent?) {

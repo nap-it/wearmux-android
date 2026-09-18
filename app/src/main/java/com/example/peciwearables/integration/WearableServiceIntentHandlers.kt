@@ -32,19 +32,20 @@ import com.example.peciwearables.integration.WearableServiceActions.EXTRA_TONE_P
 import com.example.peciwearables.integration.WearableServiceActions.EXTRA_UNIFIED_SERVER_URL
 import com.example.peciwearables.integration.WearableServiceActions.EXTRA_WATCH_NOTIFY_BODY
 import com.example.peciwearables.integration.WearableServiceActions.EXTRA_WATCH_NOTIFY_TITLE
-import com.example.peciwearables.integration.audio.AudioTestEngine
-import com.example.peciwearables.integration.audio.NotificationSounder
-import com.example.peciwearables.integration.ble.BleDeviceState
-import com.example.peciwearables.integration.ble.GlassesMicrophoneProfile
-import com.example.peciwearables.integration.ble.WearableKind
+import com.example.peciwearables.integration.adapters.BleDeviceState
+import com.example.peciwearables.integration.adapters.WearableCommand
+import com.example.peciwearables.integration.adapters.WearableSession
+import com.example.peciwearables.integration.api.PeciServerClassifier
+import com.example.peciwearables.integration.hub.WearableKind
 import com.example.peciwearables.integration.inference.InferenceMode
-import com.example.peciwearables.integration.ml.PeciServerClassifier
+import com.example.peciwearables.integration.modules.android.AudioTestEngine
+import com.example.peciwearables.integration.modules.android.NotificationSounder
+import com.example.peciwearables.integration.modules.microphone.GlassesMicrophoneProfile
 import com.example.peciwearables.integration.safety.CrossingZone
-import com.example.peciwearables.integration.wearable.WearableCommand
+import java.io.ByteArrayOutputStream
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
-import java.io.ByteArrayOutputStream
 
 private fun BleDeviceState.isOnlineBle() = this == BleDeviceState.READY || this == BleDeviceState.CONNECTED
 
@@ -203,8 +204,8 @@ internal fun WearableService.handleStartStream() {
 internal fun WearableService.handleStopStream() {
     WearableService._glassesCameraState.value = WearableService.Companion.GlassesCameraStreamState.STOPPING
     serviceScope.launch {
-        wearableHub.sessions.value.values.forEach { session ->
-            if (session.capabilities.contains(com.example.peciwearables.integration.wearable.WearableCapability.VIDEO_STREAM))
+        deviceHub.sessions.value.values.forEach { session ->
+            if (session.capabilities.contains(com.example.peciwearables.integration.adapters.WearableCapability.VIDEO_STREAM))
                 session.send(WearableCommand.StopVideoStream)
         }
     }

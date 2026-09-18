@@ -1,6 +1,22 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+}
+
+// Navisens developer key. Kept out of version control: supply it through
+// local.properties, an environment variable, or -PNAVISENS_DEVELOPER_KEY.
+// When absent the generated string is empty and the trajectory view stays off.
+val navisensDeveloperKey: String = run {
+    val fromLocalProperties = rootProject.file("local.properties")
+        .takeIf { it.exists() }
+        ?.let { file -> Properties().apply { file.inputStream().use { load(it) } } }
+        ?.getProperty("NAVISENS_DEVELOPER_KEY")
+    (project.findProperty("NAVISENS_DEVELOPER_KEY") as String?)
+        ?: System.getenv("NAVISENS_DEVELOPER_KEY")
+        ?: fromLocalProperties
+        ?: ""
 }
 
 val appModelTflite = file("../models/app/peci-edge-cpp-android-v9-impulse-#1/tflite-model/tflite_learn_937255_4.tflite")
@@ -36,6 +52,8 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        resValue("string", "navisens_developer_key", navisensDeveloperKey)
 
         ndk {
             abiFilters.add("arm64-v8a")
@@ -80,6 +98,7 @@ android {
     }
     buildFeatures {
         compose = true
+        resValues = true
     }
     lint {
         disable += "InvalidFragmentVersionForActivityResult"

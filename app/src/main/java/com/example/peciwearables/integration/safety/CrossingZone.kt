@@ -1,6 +1,6 @@
 package com.example.peciwearables.integration.safety
 
-import com.example.peciwearables.integration.sensors.PhoneGpsLocation
+import com.example.peciwearables.integration.modules.android.PhoneGpsLocation
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin

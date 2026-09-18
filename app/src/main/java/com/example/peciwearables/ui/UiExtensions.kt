@@ -2,7 +2,7 @@ package com.example.peciwearables.ui
 
 import com.example.peciwearables.BoxState
 import com.example.peciwearables.integration.GlassesConnectionMode
-import com.example.peciwearables.integration.ble.BleDeviceState
+import com.example.peciwearables.integration.adapters.BleDeviceState
 
 fun BleDeviceState.toDisplayString(): String = when (this) {
     BleDeviceState.DISCONNECTED -> "Disconnected"

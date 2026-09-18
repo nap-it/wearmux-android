@@ -28,8 +28,8 @@ import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -47,8 +47,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.peciwearables.AppViewModel
 import com.example.peciwearables.Constants
 import com.example.peciwearables.integration.NavisensImuSource
-import com.example.peciwearables.integration.ble.BleDeviceState
-import com.example.peciwearables.integration.watch.WatchClient
+import com.example.peciwearables.integration.adapters.BleDeviceState
+import com.example.peciwearables.integration.modules.wearos.WatchClient
 import com.example.peciwearables.ui.BleCandidateRow
 
 /**

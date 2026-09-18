@@ -1,6 +1,6 @@
 package com.example.peciwearables.integration
 
-import com.example.peciwearables.integration.ble.BleDeviceState
+import com.example.peciwearables.integration.adapters.BleDeviceState
 
 data class GlassesNetworkStatus(
     val udpServerActive: Boolean,

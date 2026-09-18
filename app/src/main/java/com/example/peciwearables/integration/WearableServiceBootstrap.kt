@@ -1,27 +1,27 @@
 package com.example.peciwearables.integration
 
-import com.example.peciwearables.integration.atcll.AtcllClient
-import com.example.peciwearables.integration.image.BleCameraPipeline
-import com.example.peciwearables.integration.managers.GlassesCameraManager
-import com.example.peciwearables.integration.managers.GlassesMicrophoneManager
+import com.example.peciwearables.integration.adapters.devices.brilliantsole.BrilliantSoleWristbandWearableAdapter
+import com.example.peciwearables.integration.adapters.devices.brilliantsole.defaultBrilliantSoleClientFactory
+import com.example.peciwearables.integration.adapters.devices.omi.OmiGlassesWearableAdapter
+import com.example.peciwearables.integration.adapters.devices.omi.defaultOmiGlassesClientFactory
+import com.example.peciwearables.integration.api.AtcllClient
+import com.example.peciwearables.integration.api.PeciServerClassifier
+import com.example.peciwearables.integration.hub.DefaultDeviceConnectionCoordinator
+import com.example.peciwearables.integration.hub.DefaultDeviceHub
+import com.example.peciwearables.integration.hub.standardWearableAdapterRegistry
 import com.example.peciwearables.integration.ml.PeciOnDeviceClassifier
-import com.example.peciwearables.integration.ml.PeciServerClassifier
+import com.example.peciwearables.integration.modules.camera.BleCameraPipeline
+import com.example.peciwearables.integration.modules.camera.CameraStreamHealth
+import com.example.peciwearables.integration.modules.camera.GlassesCameraManager
+import com.example.peciwearables.integration.modules.camera.computeCameraStreamStatus
+import com.example.peciwearables.integration.modules.microphone.GlassesMicrophoneManager
+import com.example.peciwearables.integration.modules.wearos.WatchClient
+import com.example.peciwearables.integration.output.OutputDispatcher
 import com.example.peciwearables.integration.safety.CrossingZoneManager
 import com.example.peciwearables.integration.safety.CrossingZoneStore
 import com.example.peciwearables.integration.safety.SafetyDiagnostics
 import com.example.peciwearables.integration.safety.SafetyGates
 import com.example.peciwearables.integration.safety.SafetyOrchestrator
-import com.example.peciwearables.integration.safety.SafetyOutputs
-import com.example.peciwearables.integration.watch.WatchClient
-import com.example.peciwearables.integration.wearable.DefaultWearableConnectionCoordinator
-import com.example.peciwearables.integration.wearable.DefaultWearableHub
-import com.example.peciwearables.integration.ble.devices.brilliantsole.defaultBrilliantSoleClientFactory
-import com.example.peciwearables.integration.ble.devices.omi.defaultOmiGlassesClientFactory
-import com.example.peciwearables.integration.wearable.devices.brilliantsole.BrilliantSoleWristbandWearableAdapter
-import com.example.peciwearables.integration.wearable.devices.omi.OmiGlassesWearableAdapter
-import com.example.peciwearables.integration.wearable.standardWearableAdapterRegistry
-import com.example.peciwearables.integration.image.camera.CameraStreamHealth
-import com.example.peciwearables.integration.image.camera.computeCameraStreamStatus
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -29,13 +29,13 @@ import kotlinx.coroutines.launch
 internal fun WearableService.bootstrapAdaptersAndHub() {
     glassesWearableAdapter = OmiGlassesWearableAdapter(defaultOmiGlassesClientFactory(this), wearableRealtimeSink)
     wristbandWearableAdapter = BrilliantSoleWristbandWearableAdapter(defaultBrilliantSoleClientFactory(this), wearableRealtimeSink)
-    val esp32 = com.example.peciwearables.integration.wearable.devices.esp32.Esp32WearableAdapter(realtimeSink = wearableRealtimeSink)
-    watchClient = com.example.peciwearables.integration.watch.WatchClient(this).also {
+    val esp32 = com.example.peciwearables.integration.adapters.devices.esp32.Esp32WearableAdapter(realtimeSink = wearableRealtimeSink)
+    watchClient = com.example.peciwearables.integration.modules.wearos.WatchClient(this).also {
         it.csvWriter = latencyCsvWriter
     }
-    val galaxyWatch = com.example.peciwearables.integration.wearable.devices.galaxywatch.GalaxyWatchWearableAdapter(watchClient)
-    wearableHub = DefaultWearableHub(
-        DefaultWearableConnectionCoordinator(standardWearableAdapterRegistry(glassesWearableAdapter, wristbandWearableAdapter, esp32, galaxyWatch)),
+    val galaxyWatch = com.example.peciwearables.integration.adapters.devices.galaxywatch.GalaxyWatchWearableAdapter(watchClient)
+    deviceHub = DefaultDeviceHub(
+        DefaultDeviceConnectionCoordinator(standardWearableAdapterRegistry(glassesWearableAdapter, wristbandWearableAdapter, esp32, galaxyWatch)),
         serviceScope,
     )
     WearableService._glassesWifiSupported.value = false
@@ -45,7 +45,10 @@ internal fun WearableService.bootstrapAdaptersAndHub() {
 }
 
 internal fun WearableService.bootstrapCameraAndMicManagers() {
-    val onJpeg: (ByteArray) -> Unit = { jpeg -> latestCameraJpeg = jpeg; glassesBleClient.onSdkStreamImageAssembled() }
+    val onJpeg: (ByteArray) -> Unit = { jpeg ->
+        latestCameraJpeg = jpeg; latestCameraJpegAtMs = timestamper.now()
+        glassesBleClient.onSdkStreamImageAssembled()
+    }
     bleCameraPipeline = BleCameraPipeline(metrics = cameraMetrics).apply {
         onLog = WearableService::appendLog; onJpegReady = onJpeg
     }
@@ -81,12 +84,12 @@ internal fun WearableService.bootstrapWatchClient() {
     serviceScope.launch {
         watchClient.watchNodeName.collect { name ->
             if (name.isNullOrBlank()) return@collect
-            val candidate = com.example.peciwearables.integration.wearable.devices.galaxywatch
+            val candidate = com.example.peciwearables.integration.adapters.devices.galaxywatch
                 .GalaxyWatchWearableAdapter.syntheticCandidate(name)
-            runCatching { wearableHub.connectByCandidate(candidate) }
+            runCatching { deviceHub.connectByCandidate(candidate) }
         }
     }
-    com.example.peciwearables.integration.watch.WatchClientObservers(
+    com.example.peciwearables.integration.modules.wearos.WatchClientObservers(
         scope = serviceScope, watch = watchClient, imuStream = WearableService._watchImuStream,
         onState = { WearableService._watchState.value = it }, onName = { WearableService._watchName.value = it },
         onBattery = { WearableService._watchBattery.value = it }, onSampleRate = { WearableService._watchSampleRateHz.value = it },
@@ -97,7 +100,7 @@ internal fun WearableService.bootstrapWatchClient() {
             if (WearableService._navisensImuSource.value == NavisensImuSource.WATCH) WearableService._latestImuSamples.update { (it + sample).takeLast(40) }
         },
         onLog = WearableService::appendLog,
-        heartbeat = object : com.example.peciwearables.integration.watch.WatchClientObservers.HeartbeatProvider {
+        heartbeat = object : com.example.peciwearables.integration.modules.wearos.WatchClientObservers.HeartbeatProvider {
             override val glassesState get() = WearableService._glassesState.value
             override val wristbandState get() = WearableService._wristbandState.value
             override val phoneSensorsActive get() = WearableService._phoneSensorsActive.value
@@ -112,7 +115,7 @@ internal fun WearableService.bootstrapCrossingZones() {
 }
 
 internal fun WearableService.bootstrapSafety() {
-    val safetyOutputs = SafetyOutputs(
+    val outputDispatcher = OutputDispatcher(
         watchClient,
         vibrateWristband = { runCatching { wristbandBleClient.sendStopAlertVibration() } },
         vibrateWristbandIntensity = { pct ->
@@ -125,7 +128,7 @@ internal fun WearableService.bootstrapSafety() {
     safetyDiagnostics = SafetyDiagnostics().also {
         it.start(serviceScope, WearableService._glassesImuStream, WearableService._latestImuSamples, WearableService._phoneAccel)
     }
-    safetyOrchestrator = SafetyOrchestrator(serviceScope, safetyDecisionFeed, safetyOutputs, SafetyGates(safetyToggles), ::mirrorDecisionForUi)
+    safetyOrchestrator = SafetyOrchestrator(serviceScope, safetyDecisionFeed, outputDispatcher, SafetyGates(safetyToggles), ::mirrorDecisionForUi)
     safetyOrchestrator.start()
 }
 
@@ -139,7 +142,7 @@ internal fun WearableService.bootstrapAtcllAndTelemetry(cloudPrefs: android.cont
     WearableService._unifiedServerUrl.value = unifiedUrl
     depthManager.setCloudUrl("$unifiedUrl/depth")
     WearableService.appendLog("🌐 Unified server: $unifiedUrl")
-    telemetryReporter = com.example.peciwearables.integration.telemetry.TelemetryReporter(serviceScope, unifiedUrl, csvWriter = latencyCsvWriter)
+    telemetryReporter = com.example.peciwearables.integration.consumer.TelemetryReporter(serviceScope, unifiedUrl, csvWriter = latencyCsvWriter)
     telemetryReporter.start(telemetryPayloadBuilder::build)
     telemetryReporter.onDecisions = { decisions ->
         @Suppress("UNCHECKED_CAST")
@@ -196,7 +199,7 @@ internal fun WearableService.startCameraStreamHealthLoop() {
 /** Observa a sessão ativa dos óculos e expõe o endereço/identificador estável para a UI. */
 internal fun WearableService.startGlassesConnectedAddressObserver() {
     serviceScope.launch {
-        wearableHub.sessions.collect { sessions ->
+        deviceHub.sessions.collect { sessions ->
             val session = sessions.values.firstOrNull { it.adapterId == OmiGlassesWearableAdapter.ADAPTER_ID }
             WearableService._glassesConnectedAddress.value = session?.id?.raw
         }

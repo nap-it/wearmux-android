@@ -36,9 +36,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.peciwearables.AppViewModel
 import com.example.peciwearables.Constants
 import com.example.peciwearables.integration.GlassesConnectionMode
-import com.example.peciwearables.integration.ble.BleDeviceState
+import com.example.peciwearables.integration.adapters.BleDeviceState
+import com.example.peciwearables.integration.modules.wearos.WatchClient
 import com.example.peciwearables.integration.network.WifiInspector
-import com.example.peciwearables.integration.watch.WatchClient
 
 /** Dispositivo que pode ser configurado com este dialog. */
 enum class ConnectableDevice {

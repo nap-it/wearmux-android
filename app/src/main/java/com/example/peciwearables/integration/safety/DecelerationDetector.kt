@@ -1,6 +1,6 @@
 package com.example.peciwearables.integration.safety
 
-import com.example.peciwearables.integration.sensors.PhoneAccelSample
+import com.example.peciwearables.integration.modules.android.PhoneAccelSample
 import kotlin.math.sqrt
 
 

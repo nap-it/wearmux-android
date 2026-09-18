@@ -2,7 +2,7 @@ package com.example.peciwearables.integration
 
 import android.graphics.Bitmap
 import android.util.Log
-import com.example.peciwearables.integration.audio.AudioTestEngine
+import com.example.peciwearables.integration.modules.android.AudioTestEngine
 import com.example.peciwearables.integration.protocol.ImuSample
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -133,7 +133,7 @@ internal fun WearableService.noteMicrophonePacketArrival() = microphoneLatencyTr
 internal fun WearableService.finalizeMicrophoneLatencyIfNeeded() = microphoneLatencyTracker.finalizeIfNeeded()
 
 internal fun WearableService.shortsToLeBytes(samples: ShortArray): ByteArray =
-    com.example.peciwearables.integration.audio.WavWriter.shortsToLeBytes(samples)
+    com.example.peciwearables.integration.modules.microphone.WavWriter.shortsToLeBytes(samples)
 
 internal fun WearableService.startAndWireUdpServer() = com.example.peciwearables.integration.udp.UdpServerWiring(
     udpServer, audioPipeline, imagePipeline, timeSyncManager, glassesMicrophoneManager,
@@ -147,7 +147,7 @@ internal fun WearableService.persistAudioRecording(): RecordedAudio? {
     val sampleRate = if (audioRecordSampleRate > 0) audioRecordSampleRate else 16_000
     val recordingsDir = File(filesDir, "recordings").apply { mkdirs() }
     val file = File(recordingsDir, "glasses_mic_${System.currentTimeMillis()}.wav")
-    val ok = runCatching { com.example.peciwearables.integration.audio.WavWriter.write(file, pcmBytes, sampleRate) }
+    val ok = runCatching { com.example.peciwearables.integration.modules.microphone.WavWriter.write(file, pcmBytes, sampleRate) }
         .onFailure { WearableService.appendLog("⚠  Error saving WAV: ${it.message}") }
         .isSuccess
     if (!ok) return null

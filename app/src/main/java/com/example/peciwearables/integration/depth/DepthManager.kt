@@ -3,6 +3,7 @@ package com.example.peciwearables.integration.depth
 import android.graphics.Bitmap
 import android.util.Log
 import com.example.peciwearables.integration.CloudConfig
+import com.example.peciwearables.integration.api.CloudDepthBackend
 import com.example.peciwearables.integration.latency.LatencyCsvWriter
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -59,10 +60,13 @@ class DepthManager(private val csvWriter: LatencyCsvWriter? = null) {
         return CloudDepthBackend(serverUrl = _cloudUrl.value, csvWriter = csvWriter).also { backend = it }
     }
 
-    /** Faz fetch ao servidor cloud. Devolve `null` em caso de erro. */
-    suspend fun estimateDepth(frame: Bitmap): DepthResult? {
+    /**
+     * Faz fetch ao servidor cloud. Devolve `null` em caso de erro.
+     * [observedAtMs]: carimbo do Timestamper à saída da aquisição do frame.
+     */
+    suspend fun estimateDepth(frame: Bitmap, observedAtMs: Long? = null): DepthResult? {
         return try {
-            getOrCreateBackend().estimateDepth(frame)
+            getOrCreateBackend().estimateDepth(frame, observedAtMs)
         } catch (e: Exception) {
             Log.e(TAG, "Depth estimation failed: ${e.message}")
             null

@@ -46,7 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.peciwearables.AppViewModel
 import com.example.peciwearables.Constants
-import com.example.peciwearables.integration.pdr.SavedRoute
+import com.example.peciwearables.integration.modules.context.SavedRoute
 import com.example.peciwearables.integration.safety.haversineMeters
 
 @Composable

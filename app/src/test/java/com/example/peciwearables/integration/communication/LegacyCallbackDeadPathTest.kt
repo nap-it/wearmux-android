@@ -1,6 +1,6 @@
 package com.example.peciwearables.integration.communication
 
-import com.example.peciwearables.integration.wearable.devices.omi.FakeOmiGlassesBleClient
+import com.example.peciwearables.integration.adapters.devices.omi.FakeOmiGlassesBleClient
 import org.junit.Assert.assertNull
 import org.junit.Test
 

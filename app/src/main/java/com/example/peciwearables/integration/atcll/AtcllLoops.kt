@@ -1,13 +1,14 @@
 package com.example.peciwearables.integration.atcll
 
+import com.example.peciwearables.integration.api.AtcllClient
+import com.example.peciwearables.integration.modules.android.PhoneGpsLocation
+import com.example.peciwearables.integration.modules.wearos.WatchClient
+import com.example.peciwearables.integration.modules.wearos.WatchProtocol
 import com.example.peciwearables.integration.safety.AtcllSafetyAlerts
 import com.example.peciwearables.integration.safety.CrossingIntentionEvaluator
 import com.example.peciwearables.integration.safety.CrossingZone
 import com.example.peciwearables.integration.safety.PedestrianSafetyDecision
 import com.example.peciwearables.integration.safety.VoiceCommandMatcher
-import com.example.peciwearables.integration.sensors.PhoneGpsLocation
-import com.example.peciwearables.integration.watch.WatchClient
-import com.example.peciwearables.integration.watch.WatchProtocol
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow

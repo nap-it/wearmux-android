@@ -36,8 +36,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.peciwearables.Constants
+import com.example.peciwearables.integration.adapters.devices.omi.quaternionToYawDeg
 import com.example.peciwearables.integration.protocol.GlassesImuSample
-import com.example.peciwearables.integration.wearable.devices.omi.quaternionToYawDeg
 
 @Composable
 fun HeadTrackingCard(

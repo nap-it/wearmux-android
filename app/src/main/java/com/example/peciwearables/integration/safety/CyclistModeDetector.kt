@@ -1,8 +1,8 @@
 package com.example.peciwearables.integration.safety
 
+import com.example.peciwearables.integration.modules.android.PhoneAccelSample
+import com.example.peciwearables.integration.modules.android.PhoneGpsLocation
 import com.example.peciwearables.integration.protocol.ImuSample
-import com.example.peciwearables.integration.sensors.PhoneAccelSample
-import com.example.peciwearables.integration.sensors.PhoneGpsLocation
 import kotlin.math.abs
 import kotlin.math.sqrt
 
