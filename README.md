@@ -49,7 +49,7 @@ integration/
 │   ├── android/      Phone camera, microphone, sensors, audio output
 │   └── wearos/       Watch client, protocol and action routing
 ├── observation/  Timestamper: the hub timestamp carried by every observation
-├── api/          HTTP and WebSocket clients for the remote services
+├── api/          HTTP, WebSocket and MQTT clients for the remote services
 ├── output/       Output dispatcher: alerts to the watch, wristband and phone
 ├── consumer/     Local consumer: telemetry reporting
 ├── safety/       Use-case logic and decision mapping
@@ -268,6 +268,41 @@ The hub expects the WearMux server on the address configured in Settings:
 | Streaming transcription | `ws://{host}:9090` |
 
 Every request carries `hub_timestamp`, stamped when the observation left acquisition rather than when the request was built. The server never replaces it; that value is what lets the fusion engine correlate motion, vision and speech coming from different devices.
+
+### Publishing over MQTT
+
+Besides the HTTP and WebSocket paths above, the hub can publish its outgoing observations to an MQTT broker. This is a second transport for the same payloads, not a replacement: the HTTP path keeps working regardless, and a broker that is unreachable never blocks or breaks it.
+
+It is off until a broker is configured. Under Settings, enable **Publish observations over MQTT** and fill in the broker and the topic prefix, or do it from a terminal:
+
+```bash
+adb shell am broadcast -a com.example.peciwearables.MQTT_SET_CONFIG \
+  --es mqtt_broker_url tcp://192.168.1.50:1883 \
+  --es mqtt_topic_prefix wearmux \
+  --ez mqtt_enabled true
+```
+
+The broker may be given as `host`, `host:port` or a full URL; the scheme defaults to `tcp://` and the port to 1883. Settings persist across restarts.
+
+One topic per modality, named after the equivalent HTTP route:
+
+| Topic | Payload |
+| --- | --- |
+| `<prefix>/telemetry` | Position, motion state, device state, zones |
+| `<prefix>/inputs/audio_stt` | Keyword and transcription events |
+| `<prefix>/inputs/glasses_pose` | Head orientation |
+
+The payload published on a topic is byte-for-byte the JSON body sent to the matching HTTP route, `hub_timestamp` included. Requests that need an answer, such as object detection and depth estimation, stay on HTTP; MQTT carries only the one-way observation flow.
+
+Checking what is being published, with a broker running on the same host:
+
+```bash
+mosquitto_sub -h 192.168.1.50 -t 'wearmux/#' -v
+```
+
+The phone is a client, not a broker. The broker is a separate program that normally runs on the server machine, which is the side of the link the architecture figure puts it on; this repository does not ship one. Any MQTT 3.1.1 broker works and Mosquitto is the usual choice. On the server side, `mqtt_bridge.py` in the server repository subscribes to these topics and feeds them to the same routes the HTTP path uses, so enabling MQTT does not change what the server does with an observation.
+
+Publishing uses QoS 0, which suits observations that are only useful while they are recent. The connection is plain `tcp://` with no credentials: it is meant for a lab network, and a deployment outside one needs authentication and TLS added on both sides.
 
 ## Wear OS companion
 

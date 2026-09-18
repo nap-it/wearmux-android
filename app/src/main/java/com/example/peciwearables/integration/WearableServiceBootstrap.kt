@@ -5,6 +5,7 @@ import com.example.peciwearables.integration.adapters.devices.brilliantsole.defa
 import com.example.peciwearables.integration.adapters.devices.omi.OmiGlassesWearableAdapter
 import com.example.peciwearables.integration.adapters.devices.omi.defaultOmiGlassesClientFactory
 import com.example.peciwearables.integration.api.AtcllClient
+import com.example.peciwearables.integration.api.MqttConfig
 import com.example.peciwearables.integration.api.PeciServerClassifier
 import com.example.peciwearables.integration.hub.DefaultDeviceConnectionCoordinator
 import com.example.peciwearables.integration.hub.DefaultDeviceHub
@@ -142,7 +143,10 @@ internal fun WearableService.bootstrapAtcllAndTelemetry(cloudPrefs: android.cont
     WearableService._unifiedServerUrl.value = unifiedUrl
     depthManager.setCloudUrl("$unifiedUrl/depth")
     WearableService.appendLog("🌐 Unified server: $unifiedUrl")
-    telemetryReporter = com.example.peciwearables.integration.consumer.TelemetryReporter(serviceScope, unifiedUrl, csvWriter = latencyCsvWriter)
+    restoreMqttConfig(cloudPrefs)
+    telemetryReporter = com.example.peciwearables.integration.consumer.TelemetryReporter(
+        serviceScope, unifiedUrl, csvWriter = latencyCsvWriter, mqttPublish = mqttPublisher::publish,
+    )
     telemetryReporter.start(telemetryPayloadBuilder::build)
     telemetryReporter.onDecisions = { decisions ->
         @Suppress("UNCHECKED_CAST")
@@ -216,4 +220,16 @@ internal fun WearableService.resetGlassesMicState() {
     glassesMicFrameCount = 0L; glassesMicLastUiUpdateMs = 0L
     WearableService._audioRecordingActive.value = false
     audioRecordPcm.reset(); audioRecordSamples = 0L; audioRecordSampleRate = 16_000
+}
+
+/** Repõe as definições do broker MQTT guardadas na sessão anterior. */
+internal fun WearableService.restoreMqttConfig(cloudPrefs: android.content.SharedPreferences) {
+    val broker = cloudPrefs.getString(WearableService.MQTT_PREF_BROKER, null).orEmpty()
+    val enabled = cloudPrefs.getBoolean(WearableService.MQTT_PREF_ENABLED, false)
+    val prefix = cloudPrefs.getString(WearableService.MQTT_PREF_TOPIC_PREFIX, null)
+        ?.takeIf { it.isNotBlank() } ?: MqttConfig.DEFAULT_TOPIC_PREFIX
+    WearableService._mqttConfig.value = MqttConfig(enabled = enabled, brokerUrl = broker, topicPrefix = prefix)
+    if (enabled && broker.isNotBlank()) {
+        WearableService.appendLog("MQTT enabled: $broker (prefix $prefix)")
+    }
 }

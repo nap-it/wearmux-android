@@ -21,6 +21,7 @@ class GlassesPoseReporter(
     private val client: OkHttpClient,
     private val latestQuaternion: () -> FloatArray?,
     private val latestQuaternionMs: () -> Long,
+    private val mqttPublish: ((route: String, json: String) -> Unit)? = null,
 ) {
     private var job: Job? = null
 
@@ -49,6 +50,7 @@ class GlassesPoseReporter(
                             append(",\"source\":\"bno085_quaternion_relative_app_axes\"")
                             append("}")
                         }
+                        mqttPublish?.invoke("inputs/glasses_pose", json)
                         val req = Request.Builder()
                             .url("$baseUrl/inputs/glasses_pose")
                             .post(json.toRequestBody(mediaType))

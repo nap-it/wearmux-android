@@ -324,7 +324,7 @@ private fun AudioTestSection(viewModel: AppViewModel) {
             onClick = { viewModel.playAudioPreset(AudioTestEngine.TonePreset.TONE_LONG) },
             colors = ButtonDefaults.buttonColors(containerColor = Constants.neutralButton),
             modifier = Modifier.weight(1f),
-        ) { Text("Tom 1 kHz / 1.5 s", color = Color.White, fontSize = 11.sp) }
+        ) { Text("Tone 1 kHz / 1.5 s", color = Color.White, fontSize = 11.sp) }
 
         Button(
             onClick = { viewModel.playAudioPreset(AudioTestEngine.TonePreset.SWEEP) },

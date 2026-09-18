@@ -12,6 +12,7 @@ kotlinxCoroutines = "1.8.1"
 turbine = "1.1.0"
 wearCompose = "1.4.0"
 playServicesWearable = "18.2.0"
+pahoMqtt = "1.2.5"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -33,6 +34,7 @@ turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine
 androidx-wear-compose-material = { group = "androidx.wear.compose", name = "compose-material", version.ref = "wearCompose" }
 androidx-wear-compose-foundation = { group = "androidx.wear.compose", name = "compose-foundation", version.ref = "wearCompose" }
 play-services-wearable = { group = "com.google.android.gms", name = "play-services-wearable", version.ref = "playServicesWearable" }
+paho-mqtt-client = { group = "org.eclipse.paho", name = "org.eclipse.paho.client.mqttv3", version.ref = "pahoMqtt" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

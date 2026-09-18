@@ -29,6 +29,9 @@ import com.example.peciwearables.integration.WearableServiceActions.EXTRA_SSID
 import com.example.peciwearables.integration.WearableServiceActions.EXTRA_TONE_DURATION_MS
 import com.example.peciwearables.integration.WearableServiceActions.EXTRA_TONE_FREQ_HZ
 import com.example.peciwearables.integration.WearableServiceActions.EXTRA_TONE_PRESET
+import com.example.peciwearables.integration.WearableServiceActions.EXTRA_MQTT_BROKER_URL
+import com.example.peciwearables.integration.WearableServiceActions.EXTRA_MQTT_ENABLED
+import com.example.peciwearables.integration.WearableServiceActions.EXTRA_MQTT_TOPIC_PREFIX
 import com.example.peciwearables.integration.WearableServiceActions.EXTRA_UNIFIED_SERVER_URL
 import com.example.peciwearables.integration.WearableServiceActions.EXTRA_WATCH_NOTIFY_BODY
 import com.example.peciwearables.integration.WearableServiceActions.EXTRA_WATCH_NOTIFY_TITLE
@@ -354,7 +357,32 @@ internal fun WearableService.handleAudioNotify(intent: Intent) {
     val freq = intent.getIntExtra(EXTRA_TONE_FREQ_HZ, 880)
     val dur = intent.getIntExtra(EXTRA_TONE_DURATION_MS, 350)
     val title = intent.getStringExtra(EXTRA_NOTIFY_TITLE) ?: "PECI signal"
-    val body = intent.getStringExtra(EXTRA_NOTIFY_BODY) ?: "Tom ${freq}Hz"
+    val body = intent.getStringExtra(EXTRA_NOTIFY_BODY) ?: "Tone ${freq}Hz"
     NotificationSounder.play(this, title, body, freq, dur)
     WearableService.appendLog("🔔 Audio notification: $title — $body")
+}
+
+internal fun WearableService.handleMqttSetConfig(intent: Intent) {
+    val current = WearableService._mqttConfig.value
+    val broker = intent.getStringExtra(EXTRA_MQTT_BROKER_URL)?.trim() ?: current.brokerUrl
+    val prefix = intent.getStringExtra(EXTRA_MQTT_TOPIC_PREFIX)?.trim()?.takeIf { it.isNotBlank() }
+        ?: current.topicPrefix
+    val enabled = if (intent.hasExtra(EXTRA_MQTT_ENABLED)) {
+        intent.getBooleanExtra(EXTRA_MQTT_ENABLED, current.enabled)
+    } else {
+        current.enabled
+    }
+    val next = current.copy(enabled = enabled, brokerUrl = broker, topicPrefix = prefix)
+    WearableService._mqttConfig.value = next
+    getSharedPreferences(WearableService.ATCLL_PREFS, Context.MODE_PRIVATE).edit()
+        .putBoolean(WearableService.MQTT_PREF_ENABLED, next.enabled)
+        .putString(WearableService.MQTT_PREF_BROKER, next.brokerUrl)
+        .putString(WearableService.MQTT_PREF_TOPIC_PREFIX, next.topicPrefix)
+        .apply()
+    // Fecha a ligação actual: a próxima publicação reabre já com o novo broker.
+    mqttPublisher.shutdown()
+    WearableService.appendLog(
+        if (next.isUsable) "MQTT: ${next.normalizedBrokerUrl()} (prefix ${next.topicPrefix})"
+        else "MQTT: disabled"
+    )
 }

@@ -58,6 +58,7 @@ import com.example.peciwearables.integration.GlassesNetworkStatusResolver
 import com.example.peciwearables.integration.GlassesSettingsStore
 import com.example.peciwearables.integration.MlProcessingLocation
 import com.example.peciwearables.integration.adapters.BleDeviceState
+import com.example.peciwearables.integration.api.MqttConfig
 
 @Composable
 fun SettingsScreen(viewModel: AppViewModel) {
@@ -76,8 +77,15 @@ fun SettingsScreen(viewModel: AppViewModel) {
     val isDeveloperMode by viewModel.isDeveloperMode.collectAsStateWithLifecycle()
     var unifiedUrlInput by remember { mutableStateOf("") }
     LaunchedEffect(unifiedServerUrl) { if (unifiedUrlInput.isEmpty()) unifiedUrlInput = unifiedServerUrl }
-    var ssid by remember { mutableStateOf("MEO-4888D0") }
-    var password by remember { mutableStateOf("6996fdb6b0") }
+    val mqttConfig by viewModel.mqttConfig.collectAsStateWithLifecycle()
+    var mqttBrokerInput by remember { mutableStateOf("") }
+    var mqttPrefixInput by remember { mutableStateOf("") }
+    LaunchedEffect(mqttConfig) {
+        if (mqttBrokerInput.isEmpty()) mqttBrokerInput = mqttConfig.brokerUrl
+        if (mqttPrefixInput.isEmpty()) mqttPrefixInput = mqttConfig.topicPrefix
+    }
+    var ssid by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
     var glassesCameraResolutionInput by remember { mutableStateOf("480") }
     var glassesCameraQualityInput by remember { mutableStateOf("74") }
     var glassesCameraRateInput by remember { mutableStateOf("10") }
@@ -159,6 +167,77 @@ fun SettingsScreen(viewModel: AppViewModel) {
             colors = ButtonDefaults.buttonColors(containerColor = Constants.accentColor),
         ) {
             Text("Save URL", color = Color.Black, fontSize = 13.sp)
+        }
+
+        Text(
+            "MQTT broker",
+            style = MaterialTheme.typography.labelMedium,
+            color = Constants.secondaryTextColor,
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(
+                "Publish observations over MQTT",
+                color = Constants.primaryTextColor,
+                fontSize = 13.sp,
+                modifier = Modifier.weight(1f),
+            )
+            Switch(
+                checked = mqttConfig.enabled,
+                onCheckedChange = { viewModel.mqttSetConfig(enabled = it) },
+            )
+        }
+        OutlinedTextField(
+            value = mqttBrokerInput,
+            onValueChange = { mqttBrokerInput = it },
+            label = { Text("Broker host or URL", color = Constants.secondaryTextColor) },
+            placeholder = { Text("tcp://192.168.1.50:1883", color = Constants.secondaryTextColor) },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = Constants.primaryTextColor,
+                unfocusedTextColor = Constants.primaryTextColor,
+                focusedBorderColor = Constants.accentColor,
+                unfocusedBorderColor = Constants.secondaryTextColor,
+            ),
+        )
+        OutlinedTextField(
+            value = mqttPrefixInput,
+            onValueChange = { mqttPrefixInput = it },
+            label = { Text("Topic prefix", color = Constants.secondaryTextColor) },
+            placeholder = { Text(MqttConfig.DEFAULT_TOPIC_PREFIX, color = Constants.secondaryTextColor) },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = Constants.primaryTextColor,
+                unfocusedTextColor = Constants.primaryTextColor,
+                focusedBorderColor = Constants.accentColor,
+                unfocusedBorderColor = Constants.secondaryTextColor,
+            ),
+        )
+        Button(
+            onClick = {
+                viewModel.mqttSetConfig(
+                    brokerUrl = mqttBrokerInput.trim(),
+                    topicPrefix = mqttPrefixInput.trim().ifBlank { MqttConfig.DEFAULT_TOPIC_PREFIX },
+                )
+            },
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(containerColor = Constants.accentColor),
+        ) {
+            Text("Save broker", color = Color.Black, fontSize = 13.sp)
+        }
+        if (mqttConfig.isUsable) {
+            Text(
+                "Topics: ${mqttConfig.topicFor("telemetry")}, " +
+                    "${mqttConfig.topicFor("inputs/audio_stt")}, " +
+                    mqttConfig.topicFor("inputs/glasses_pose"),
+                style = MaterialTheme.typography.labelSmall,
+                color = Constants.secondaryTextColor,
+            )
         }
 
         // Painel Watch + Áudio em colapsável (igual a YOLO/STT) — primeira

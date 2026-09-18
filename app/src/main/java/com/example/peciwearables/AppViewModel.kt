@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Intent
 import android.graphics.Bitmap
 import androidx.lifecycle.AndroidViewModel
+import com.example.peciwearables.integration.api.MqttConfig
 import com.example.peciwearables.integration.AlertPreferencesStore
 import com.example.peciwearables.integration.BleConnectionCandidate
 import com.example.peciwearables.integration.CapturedPhoto
@@ -602,6 +603,19 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         sendAction(WearableServiceActions.ACTION_UNIFIED_SERVER_SET_URL) {
             putExtra(WearableServiceActions.EXTRA_UNIFIED_SERVER_URL, url)
         }
+
+    val mqttConfig: StateFlow<MqttConfig> = WearableService.mqttConfig
+
+    /** Só os campos passados são alterados; os restantes mantêm o valor actual. */
+    fun mqttSetConfig(
+        enabled: Boolean? = null,
+        brokerUrl: String? = null,
+        topicPrefix: String? = null,
+    ) = sendAction(WearableServiceActions.ACTION_MQTT_SET_CONFIG) {
+        enabled?.let { putExtra(WearableServiceActions.EXTRA_MQTT_ENABLED, it) }
+        brokerUrl?.let { putExtra(WearableServiceActions.EXTRA_MQTT_BROKER_URL, it) }
+        topicPrefix?.let { putExtra(WearableServiceActions.EXTRA_MQTT_TOPIC_PREFIX, it) }
+    }
 
     fun safetySetUc2(enabled: Boolean) =
         sendAction(WearableServiceActions.ACTION_SAFETY_SET_UC2_ENABLED) {

@@ -24,6 +24,7 @@ import com.example.peciwearables.integration.adapters.devices.omi.OmiGlassesWear
 import com.example.peciwearables.integration.adapters.legacy.WearableServiceLegacyBridge
 import com.example.peciwearables.integration.api.AtcllClient
 import com.example.peciwearables.integration.api.CloudLatencyReporter
+import com.example.peciwearables.integration.api.MqttConfig
 import com.example.peciwearables.integration.api.PeciServerClassifier
 import com.example.peciwearables.integration.depth.DepthManager
 import com.example.peciwearables.integration.hub.DefaultDeviceHub
@@ -150,6 +151,9 @@ class WearableService : Service(), LifecycleOwner {
         internal const val UNIFIED_SERVER_PREF_URL = "unified_server_url"
         internal const val UNIFIED_SERVER_DEFAULT_URL = CloudConfig.DEFAULT_BASE_URL
         internal const val IMU_PREF_URL = "imu_endpoint"
+        internal const val MQTT_PREF_ENABLED = "mqtt_enabled"
+        internal const val MQTT_PREF_BROKER = "mqtt_broker_url"
+        internal const val MQTT_PREF_TOPIC_PREFIX = "mqtt_topic_prefix"
 
         internal const val GLASSES_MIC_TRANSITION_TIMEOUT_MS = 3_000L
         enum class GlassesMicStreamState { IDLE, STARTING, STREAMING, STOPPING, ERROR }
@@ -288,6 +292,7 @@ class WearableService : Service(), LifecycleOwner {
         internal val _atcllStatus = MutableStateFlow(AtcllClient.Status.OFFLINE); val atcllStatus: StateFlow<AtcllClient.Status> = _atcllStatus
         internal val _atcllEndpoint = MutableStateFlow<String?>(null); val atcllEndpoint: StateFlow<String?> = _atcllEndpoint
         internal val _unifiedServerUrl = MutableStateFlow(UNIFIED_SERVER_DEFAULT_URL); val unifiedServerUrl: StateFlow<String> = _unifiedServerUrl
+        internal val _mqttConfig = MutableStateFlow(MqttConfig()); val mqttConfig: StateFlow<MqttConfig> = _mqttConfig
 
         var instance: WearableService? = null
             private set
@@ -501,10 +506,17 @@ class WearableService : Service(), LifecycleOwner {
             serviceScope, { _unifiedServerUrl.value }, { _crossingZones.value },
         )
     }
+    /** Transporte alternativo das observações: mesmo payload, tópicos MQTT. */
+    internal val mqttPublisher by lazy {
+        com.example.peciwearables.integration.api.MqttObservationPublisher(
+            scope = serviceScope, config = { _mqttConfig.value }, onLog = ::appendLog,
+        )
+    }
     internal val cloudKwsForwarder by lazy {
         com.example.peciwearables.integration.api.CloudKwsForwarder(
             serviceScope,
             baseUrlProvider = { _unifiedServerUrl.value },
+            mqttPublish = mqttPublisher::publish,
         )
     }
     internal lateinit var safetyOrchestrator: SafetyOrchestrator
@@ -513,6 +525,7 @@ class WearableService : Service(), LifecycleOwner {
     internal val glassesPoseReporter by lazy {
         com.example.peciwearables.integration.api.GlassesPoseReporter(
             serviceScope, fusionHttpClient, { _latestGlassesQuaternion.value }, { latestGlassesQuaternionMs },
+            mqttPublish = mqttPublisher::publish,
         )
     }
     internal val fusionHttpClient = okhttp3.OkHttpClient.Builder().apply {

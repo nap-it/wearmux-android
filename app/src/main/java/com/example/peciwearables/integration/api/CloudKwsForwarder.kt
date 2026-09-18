@@ -22,6 +22,7 @@ class CloudKwsForwarder(
     private val scope: CoroutineScope,
     private val baseUrlProvider: () -> String,
     private val timestamper: Timestamper = Timestamper.SYSTEM,
+    private val mqttPublish: ((route: String, json: String) -> Unit)? = null,
 ) {
     private val client = OkHttpClient.Builder()
         .connectTimeout(1_500, TimeUnit.MILLISECONDS)
@@ -40,15 +41,17 @@ class CloudKwsForwarder(
     private fun send(keyword: String, hubTimestampMs: Long) {
         val base = baseUrlProvider().trim('/')
         if (base.isBlank()) return
-        val body = JSONObject().apply {
+        val payload = JSONObject().apply {
             put("audio_segment_id", UUID.randomUUID().toString())
             put("hub_timestamp", hubTimestampMs)
             put("model", "sherpa-kws-cloud")
             put("text", keyword)
             put("language", "en")
             put("confidence", 1.0)
-        }.toString().toRequestBody(JSON)
-        val req = Request.Builder().url("$base/inputs/audio_stt").post(body).build()
+        }.toString()
+        mqttPublish?.invoke("inputs/audio_stt", payload)
+        val requestBody = payload.toRequestBody(JSON)
+        val req = Request.Builder().url("$base/inputs/audio_stt").post(requestBody).build()
         runCatching { client.newCall(req).execute().use { /* ignore */ } }
             .onFailure { Log.d(TAG, "POST /inputs/audio_stt failed: ${it.message}") }
     }

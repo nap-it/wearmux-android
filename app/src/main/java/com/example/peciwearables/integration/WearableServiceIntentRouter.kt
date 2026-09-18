@@ -13,6 +13,7 @@ import com.example.peciwearables.integration.WearableServiceActions.ACTION_CONNE
 import com.example.peciwearables.integration.WearableServiceActions.ACTION_CONNECT_ESP32
 import com.example.peciwearables.integration.WearableServiceActions.ACTION_CONNECT_GLASSES
 import com.example.peciwearables.integration.WearableServiceActions.ACTION_CONNECT_UDP
+import com.example.peciwearables.integration.WearableServiceActions.ACTION_MQTT_SET_CONFIG
 import com.example.peciwearables.integration.WearableServiceActions.ACTION_CONNECT_WRISTBAND
 import com.example.peciwearables.integration.WearableServiceActions.ACTION_DEPTH_SET_URL
 import com.example.peciwearables.integration.WearableServiceActions.ACTION_DISCONNECT_GLASSES
@@ -110,6 +111,7 @@ internal fun WearableService.routeIntent(intent: Intent?) {
         ACTION_APPLY_GLASSES_CAMERA_PROFILE -> handleApplyGlassesCameraProfile(intent)
         ACTION_APPLY_GLASSES_MICROPHONE_PROFILE -> handleApplyGlassesMicrophoneProfile(intent)
         ACTION_CONNECT_UDP -> handleConnectUdp()
+        ACTION_MQTT_SET_CONFIG -> handleMqttSetConfig(intent)
         ACTION_SET_GLASSES_CONNECTION_MODE -> handleSetGlassesConnectionMode(intent)
         ACTION_VIBRATE_STOP -> { wristbandBleClient.sendStopAlertVibration(); WearableService.appendLog("🛑 STOP vibration via App") }
         ACTION_VIBRATE_GO -> { wristbandBleClient.sendGoAlertVibration(); WearableService.appendLog("▶️ GO vibration via App") }

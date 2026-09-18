@@ -25,6 +25,8 @@ class TelemetryReporter(
     private val intervalMs: Long = 1000L,
     private val csvWriter: LatencyCsvWriter? = null,
     private val timestamper: Timestamper = Timestamper.SYSTEM,
+    /** Mesma observação, transporte alternativo. Ver MqttObservationPublisher. */
+    private val mqttPublish: ((route: String, json: String) -> Unit)? = null,
 ) {
 
     private val telemetrySeq = AtomicInteger(0)
@@ -155,7 +157,9 @@ class TelemetryReporter(
             }
             p.glassesImu?.let { put("glasses_imu", imuJson(it)) }
         }
-        val body = json.toString().toRequestBody(JSON_MEDIA_TYPE)
+        val serialized = json.toString()
+        mqttPublish?.invoke("telemetry", serialized)
+        val body = serialized.toRequestBody(JSON_MEDIA_TYPE)
         val req = Request.Builder()
             .url("$baseUrl/telemetry")
             .post(body)

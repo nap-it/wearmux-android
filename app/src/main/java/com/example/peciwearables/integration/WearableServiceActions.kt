@@ -68,6 +68,7 @@ object WearableServiceActions {
     const val ACTION_DEPTH_SET_URL = "com.example.peciwearables.DEPTH_SET_URL"
     const val ACTION_ATCLL_SET_ENDPOINT = "com.example.peciwearables.ATCLL_ENDPOINT"
     const val ACTION_UNIFIED_SERVER_SET_URL = "com.example.peciwearables.UNIFIED_SERVER_SET_URL"
+    const val ACTION_MQTT_SET_CONFIG = "com.example.peciwearables.MQTT_SET_CONFIG"
     const val ACTION_AUDIO_TEST_TONE = "com.example.peciwearables.AUDIO_TEST_TONE"
     const val ACTION_AUDIO_TEST_STOP = "com.example.peciwearables.AUDIO_TEST_STOP"
     const val ACTION_AUDIO_NOTIFY = "com.example.peciwearables.AUDIO_NOTIFY"
@@ -108,4 +109,7 @@ object WearableServiceActions {
     const val EXTRA_TONE_DURATION_MS = "tone_duration_ms"
     const val EXTRA_NOTIFY_TITLE = "notify_title"
     const val EXTRA_NOTIFY_BODY = "notify_body"
+    const val EXTRA_MQTT_ENABLED = "mqtt_enabled"
+    const val EXTRA_MQTT_BROKER_URL = "mqtt_broker_url"
+    const val EXTRA_MQTT_TOPIC_PREFIX = "mqtt_topic_prefix"
 }

@@ -149,4 +149,5 @@ dependencies {
     // Wear OS DataLayer — comunicação com Galaxy Watch 8 via DataClient,
     // MessageClient e ChannelClient. O watch corre o módulo `:wear`.
     implementation(libs.play.services.wearable)
+    implementation(libs.paho.mqtt.client)
 }
