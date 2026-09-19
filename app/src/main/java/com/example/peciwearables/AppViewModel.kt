@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Intent
 import android.graphics.Bitmap
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
 import com.example.peciwearables.integration.api.MqttConfig
 import com.example.peciwearables.integration.AlertPreferencesStore
 import com.example.peciwearables.integration.BleConnectionCandidate
@@ -19,6 +20,7 @@ import com.example.peciwearables.integration.WearableServiceActions
 import com.example.peciwearables.integration.adapters.BleDeviceState
 import com.example.peciwearables.integration.inference.InferenceMode
 import com.example.peciwearables.integration.modules.android.AudioTestEngine
+import com.example.peciwearables.integration.modules.android.PhoneBatteryMonitor
 import com.example.peciwearables.integration.modules.context.PdrPosition
 import com.example.peciwearables.integration.modules.context.SavedRoute
 import com.example.peciwearables.integration.modules.microphone.stt.WhisperSegment
@@ -28,19 +30,12 @@ import com.example.peciwearables.integration.protocol.ImuSample
 import com.example.peciwearables.integration.protocol.WristbandImuSample
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-
-enum class Tab {
-    DEVICES,
-    STATUS,
-    DEV_LAB,
-    SETTINGS
-}
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 
 class AppViewModel(application: Application) : AndroidViewModel(application) {
-
-    private val _selectedTab = MutableStateFlow(Tab.DEVICES)
-    val selectedTab: StateFlow<Tab> = _selectedTab
 
     // Modo desenvolvimento — controla apenas visibilidade/acesso a UI técnica,
     // nunca o comportamento de runtime (BLE, câmara, IMU, telemetria, safety).
@@ -138,6 +133,31 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     // Phone sensors / PDR / Route
     val phoneSensorsActive: StateFlow<Boolean> = WearableService.phoneSensorsActive
     val phoneGps: StateFlow<com.example.peciwearables.integration.modules.android.PhoneGpsLocation?> = WearableService.phoneGps
+
+    private val _phoneBatteryPercent = MutableStateFlow(
+        PhoneBatteryMonitor.currentPercent(application)
+    )
+    val phoneBatteryPercent: StateFlow<Int> = _phoneBatteryPercent
+
+    private val batteryReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: android.content.Context?, intent: Intent?) {
+            _phoneBatteryPercent.value = PhoneBatteryMonitor.currentPercent(getApplication())
+        }
+    }
+
+    init {
+        getApplication<Application>().registerReceiver(
+            batteryReceiver,
+            android.content.IntentFilter(Intent.ACTION_BATTERY_CHANGED),
+            android.content.Context.RECEIVER_NOT_EXPORTED,
+        )
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        getApplication<Application>().unregisterReceiver(batteryReceiver)
+    }
+
     val pdrPosition: StateFlow<PdrPosition?> = WearableService.pdrPosition
     val pdrStepCount: StateFlow<Int> = WearableService.pdrStepCount
     val savedRoutes: StateFlow<List<SavedRoute>> = WearableService.savedRoutes
@@ -170,13 +190,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     val watchImuStream: SharedFlow<ImuSample> = WearableService.watchImuStream
     val navisensImuSource: StateFlow<NavisensImuSource> = WearableService.navisensImuSource
 
-    fun setTab(tab: Tab) {
-        _selectedTab.value = tab
-    }
-
-    fun getTab(): Tab {
-        return _selectedTab.value
-    }
+    val hasConnectedWearable: StateFlow<Boolean> = combine(
+        watchState, glassesState, wristbandState, esp32State,
+    ) { watch, glasses, wristband, esp32 ->
+        WearableVisibility.anyVisible(watch, glasses, wristband, esp32)
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     fun startService() {
         val context = getApplication<Application>()
