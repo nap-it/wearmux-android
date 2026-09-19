@@ -15,6 +15,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -34,12 +38,17 @@ import com.example.peciwearables.integration.modules.camera.CameraStreamStatus
 import com.example.peciwearables.integration.modules.wearos.WatchClient
 
 /**
- * Aba "Estado": resumo de saúde do sistema — stream de câmara, microfone, IMU,
- * ligação e último alerta de segurança. Igual em modo Normal e Dev; não é uma
- * ferramenta técnica (isso fica em Dev/Laboratório), é um dashboard de leitura.
+ * System status dashboard — camera stream, microphone, IMU, connection and
+ * the last safety alert. Same in Normal and Dev mode; it's a read-only
+ * dashboard, not a technical tool (that's Dev Lab).
+ *
+ * When [filterDevice] is set, only that device's section is shown (used when
+ * opened from a specific device's detail screen); when null, every device's
+ * section is shown along with the overall "System ready"/"Last alert" cards
+ * (used from the bottom bar's Status tab).
  */
 @Composable
-fun EstadoScreen(viewModel: AppViewModel) {
+fun EstadoScreen(viewModel: AppViewModel, onBack: () -> Unit, filterDevice: DeviceId? = null) {
     val cameraStreamHealth by viewModel.cameraStreamHealth.collectAsStateWithLifecycle()
     val glassesMicStreaming by viewModel.glassesMicStreaming.collectAsStateWithLifecycle()
     val glassesMicStatusText by viewModel.glassesMicStatusText.collectAsStateWithLifecycle()
@@ -53,6 +62,8 @@ fun EstadoScreen(viewModel: AppViewModel) {
     val wristbandBattery by viewModel.wristbandBattery.collectAsStateWithLifecycle()
     val watchBattery by viewModel.watchBattery.collectAsStateWithLifecycle()
     val safetyLog by viewModel.safetyLog.collectAsStateWithLifecycle()
+    val phoneSensorsActive by viewModel.phoneSensorsActive.collectAsStateWithLifecycle()
+    val phoneBatteryPercent by viewModel.phoneBatteryPercent.collectAsStateWithLifecycle()
 
     val systemReady = cameraStreamHealth.status != CameraStreamStatus.LOST &&
         glassesState != BleDeviceState.ERROR &&
@@ -65,42 +76,72 @@ fun EstadoScreen(viewModel: AppViewModel) {
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back",
+                    tint = Constants.secondaryTextColor,
+                )
+            }
+            Text("Back", color = Constants.secondaryTextColor, fontSize = 14.sp)
+        }
+
         Text(
             text = "System status",
             color = Constants.primaryTextColor,
             style = MaterialTheme.typography.titleLarge,
         )
 
-        SystemReadyCard(systemReady, glassesState)
+        if (filterDevice == null) {
+            SystemReadyCard(systemReady, glassesState)
+        }
 
-        GlassesStatusCard(
-            glassesState = glassesState,
-            cameraStreamStatus = cameraStreamHealth.status,
-            framesReceived = cameraStreamHealth.framesReceived,
-            fps = cameraStreamHealth.fps,
-            lastFrameAgeMs = cameraStreamHealth.lastFrameAgeMs,
-            micStreaming = glassesMicStreaming,
-            micStatusText = glassesMicStatusText,
-            imuStreamingEnabled = imuStreamingEnabled,
-            connectionMode = glassesConnectionMode,
-            udpActive = udpActive,
-        )
+        if (filterDevice == null || filterDevice == DeviceId.PHONE) {
+            SimpleDeviceStatusCard(
+                title = "Phone",
+                statusLabel = if (phoneSensorsActive) "Active" else "Idle",
+                statusColor = if (phoneSensorsActive) Constants.successColor else Constants.idleColor,
+                battery = phoneBatteryPercent,
+            )
+        }
 
-        SimpleDeviceStatusCard(
-            title = "Watch – Galaxy Watch",
-            statusLabel = watchStatusLabel(watchState),
-            statusColor = watchStatusColor(watchState),
-            battery = watchBattery,
-        )
+        if (filterDevice == null || filterDevice == DeviceId.GLASSES) {
+            GlassesStatusCard(
+                glassesState = glassesState,
+                cameraStreamStatus = cameraStreamHealth.status,
+                framesReceived = cameraStreamHealth.framesReceived,
+                fps = cameraStreamHealth.fps,
+                lastFrameAgeMs = cameraStreamHealth.lastFrameAgeMs,
+                micStreaming = glassesMicStreaming,
+                micStatusText = glassesMicStatusText,
+                imuStreamingEnabled = imuStreamingEnabled,
+                connectionMode = glassesConnectionMode,
+                udpActive = udpActive,
+            )
+        }
 
-        SimpleDeviceStatusCard(
-            title = "Wristband",
-            statusLabel = bleStatusLabel(wristbandState),
-            statusColor = bleStatusColor(wristbandState),
-            battery = wristbandBattery,
-        )
+        if (filterDevice == null || filterDevice == DeviceId.GALAXY_WATCH) {
+            SimpleDeviceStatusCard(
+                title = "Watch – Galaxy Watch",
+                statusLabel = watchStatusLabel(watchState),
+                statusColor = watchStatusColor(watchState),
+                battery = watchBattery,
+            )
+        }
 
-        LastAlertCard(safetyLog)
+        if (filterDevice == null || filterDevice == DeviceId.WRISTBAND) {
+            SimpleDeviceStatusCard(
+                title = "Wristband",
+                statusLabel = bleStatusLabel(wristbandState),
+                statusColor = bleStatusColor(wristbandState),
+                battery = wristbandBattery,
+            )
+        }
+
+        if (filterDevice == null) {
+            LastAlertCard(safetyLog)
+        }
     }
 }
 

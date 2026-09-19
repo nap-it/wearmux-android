@@ -17,12 +17,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -51,7 +53,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.peciwearables.AppViewModel
 import com.example.peciwearables.BoxState
 import com.example.peciwearables.Constants
-import com.example.peciwearables.Tab
 import com.example.peciwearables.integration.CloudConfig
 import com.example.peciwearables.integration.GlassesConnectionMode
 import com.example.peciwearables.integration.GlassesNetworkStatusResolver
@@ -61,7 +62,7 @@ import com.example.peciwearables.integration.adapters.BleDeviceState
 import com.example.peciwearables.integration.api.MqttConfig
 
 @Composable
-fun SettingsScreen(viewModel: AppViewModel) {
+fun SettingsScreen(viewModel: AppViewModel, onOpenDiagnostics: () -> Unit, onBack: () -> Unit) {
     val glassesState by viewModel.glassesState.collectAsStateWithLifecycle()
     val wristbandState by viewModel.wristbandState.collectAsStateWithLifecycle()
     val udpActive by viewModel.udpActive.collectAsStateWithLifecycle()
@@ -105,8 +106,19 @@ fun SettingsScreen(viewModel: AppViewModel) {
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Modo desenvolvimento — sempre visível, controla apenas a
-        // visibilidade das ferramentas técnicas abaixo.
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back",
+                    tint = Constants.secondaryTextColor,
+                )
+            }
+            Text("Back", color = Constants.secondaryTextColor, fontSize = 14.sp)
+        }
+
+        // Developer mode — always visible, only controls the visibility of
+        // the technical tools below.
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -139,11 +151,18 @@ fun SettingsScreen(viewModel: AppViewModel) {
             )
         }
 
-        NormalSettingsSection(viewModel)
+        NormalSettingsSection(viewModel, onBack)
 
         if (isDeveloperMode) {
+        Button(
+            onClick = onOpenDiagnostics,
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(containerColor = Constants.neutralButton),
+        ) {
+            Text("Diagnostics", color = Color.White, fontSize = 13.sp)
+        }
         Text(
-            "PECI server",
+            "WearMux server",
             style = MaterialTheme.typography.labelMedium,
             color = Constants.secondaryTextColor,
         )
@@ -425,7 +444,7 @@ fun SettingsScreen(viewModel: AppViewModel) {
 }
 
 @Composable
-private fun NormalSettingsSection(viewModel: AppViewModel) {
+private fun NormalSettingsSection(viewModel: AppViewModel, onBack: () -> Unit) {
     val vibrationEnabled by viewModel.vibrationEnabled.collectAsStateWithLifecycle()
     val soundEnabled by viewModel.soundEnabled.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -485,7 +504,7 @@ private fun NormalSettingsSection(viewModel: AppViewModel) {
     Text("DEVICES", style = MaterialTheme.typography.labelMedium, color = Constants.secondaryTextColor)
 
     OutlinedButton(
-        onClick = { viewModel.setTab(Tab.DEVICES) },
+        onClick = onBack,
         modifier = Modifier.fillMaxWidth(),
     ) { Text("Manage devices", color = Constants.primaryTextColor) }
 
