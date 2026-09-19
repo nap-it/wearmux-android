@@ -1,6 +1,8 @@
 package com.example.peciwearables.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -63,6 +65,7 @@ fun GlassesWifiDialog(
                 .fillMaxWidth(0.92f)
                 .clip(RoundedCornerShape(16.dp))
                 .background(Constants.cardBackground)
+                .border(BorderStroke(1.dp, Constants.cardBorderColor), RoundedCornerShape(16.dp))
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
@@ -83,6 +86,7 @@ fun GlassesWifiDialog(
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(10.dp))
                     .background(Constants.cardBackgroundElevated)
+                    .border(BorderStroke(1.dp, Constants.cardBorderColor), RoundedCornerShape(10.dp))
                     .padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
             ) {

@@ -1,6 +1,8 @@
 package com.example.peciwearables.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -11,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
@@ -135,6 +138,7 @@ private fun DeviceHeader(deviceId: DeviceId) {
             text = deviceId.displayName(),
             color = Constants.primaryTextColor,
             fontSize = 22.sp,
+            fontWeight = FontWeight.SemiBold,
         )
     }
 }
@@ -150,11 +154,12 @@ private fun SummaryCard(
         modifier = modifier
             .clip(RoundedCornerShape(16.dp))
             .background(Constants.cardBackground)
+            .border(BorderStroke(1.dp, Constants.cardBorderColor), RoundedCornerShape(16.dp))
             .padding(18.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(value, color = valueColor, fontSize = 20.sp)
+        Text(value, color = valueColor, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
         Text(label, color = Constants.secondaryTextColor, fontSize = 12.sp)
     }
 }
@@ -172,6 +177,7 @@ private fun TechnicalDetailsBlock(
             .testTag("technical_details_block")
             .clip(RoundedCornerShape(14.dp))
             .background(Constants.cardBackground)
+            .border(BorderStroke(1.dp, Constants.cardBorderColor), RoundedCornerShape(14.dp))
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -179,6 +185,8 @@ private fun TechnicalDetailsBlock(
             "TECHNICAL DETAILS",
             color = Constants.accentColor,
             fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = 0.6.sp,
         )
         technicalDetailRows(viewModel, deviceId).forEach { (label, value) ->
             Row(

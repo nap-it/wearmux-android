@@ -326,6 +326,7 @@ fun SavedRouteRow(
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(Constants.cardBackground)
+            .border(1.dp, Constants.cardBorderColor, RoundedCornerShape(12.dp))
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

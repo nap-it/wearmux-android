@@ -1,6 +1,8 @@
 package com.example.peciwearables.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -45,6 +47,7 @@ fun MiniTrajectoryDialog(
                 .fillMaxWidth(0.95f)
                 .clip(RoundedCornerShape(16.dp))
                 .background(Constants.cardBackground)
+                .border(BorderStroke(1.dp, Constants.cardBorderColor), RoundedCornerShape(16.dp))
                 .padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {

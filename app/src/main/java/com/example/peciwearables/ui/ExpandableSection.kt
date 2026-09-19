@@ -1,7 +1,9 @@
 package com.example.peciwearables.ui
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -50,7 +52,8 @@ fun ExpandableSection(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
-            .background(Constants.cardBackground),
+            .background(Constants.cardBackground)
+            .border(BorderStroke(1.dp, Constants.cardBorderColor), RoundedCornerShape(14.dp)),
     ) {
         Row(
             modifier = Modifier

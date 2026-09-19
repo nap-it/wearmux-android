@@ -1,6 +1,8 @@
 package com.example.peciwearables.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -32,8 +34,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextGeometricTransform
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -94,9 +100,11 @@ fun HomeScreen(
         CandidateScanSection(viewModel)
 
         Text(
-            text = "Connected devices",
-            color = Constants.primaryTextColor,
-            fontSize = 15.sp,
+            text = "CONNECTED DEVICES",
+            color = Constants.secondaryTextColor,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = 0.8.sp,
         )
 
         PhoneDeviceCard(viewModel, onOpenDevice)
@@ -118,6 +126,7 @@ private fun HomeHeader(onOpenSettings: () -> Unit) {
             text = "WearMux",
             color = Constants.primaryTextColor,
             fontSize = 22.sp,
+            fontWeight = FontWeight.SemiBold,
             style = MaterialTheme.typography.titleLarge,
         )
         IconButton(onClick = onOpenSettings) {
@@ -136,23 +145,40 @@ private fun GiantConnectButton(scanning: Boolean, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(1.1f)
-            .clip(RoundedCornerShape(28.dp))
-            .background(Constants.accentColor)
+            .shadow(
+                elevation = 20.dp,
+                shape = RoundedCornerShape(24.dp),
+                ambientColor = Constants.accentColor,
+                spotColor = Constants.accentColor,
+            )
+            .clip(RoundedCornerShape(24.dp))
+            .background(
+                Brush.linearGradient(listOf(Constants.accentColor, Constants.accentMuted))
+            )
             .clickable(onClick = onClick),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Icon(
-            imageVector = Icons.Filled.Link,
-            contentDescription = null,
-            tint = Color.White,
-            modifier = Modifier.size(64.dp),
-        )
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.16f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Link,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(24.dp),
+            )
+        }
         Spacer(Modifier.size(16.dp))
         Text(
             text = if (scanning) "Searching…" else "Search Wearables",
             color = Color.White,
-            fontSize = 26.sp,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.SemiBold,
             style = MaterialTheme.typography.titleLarge,
         )
     }
@@ -163,8 +189,9 @@ private fun ConnectAnotherDeviceStrip(scanning: Boolean, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
+            .clip(RoundedCornerShape(16.dp))
             .background(Constants.cardBackgroundElevated)
+            .border(BorderStroke(1.dp, Constants.cardBorderColor), RoundedCornerShape(16.dp))
             .clickable(onClick = onClick)
             .padding(16.dp),
         horizontalArrangement = Arrangement.Center,
@@ -179,7 +206,8 @@ private fun ConnectAnotherDeviceStrip(scanning: Boolean, onClick: () -> Unit) {
         Text(
             text = if (scanning) "Searching…" else "Search another device",
             color = Constants.accentColor,
-            fontSize = 16.sp,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.SemiBold,
             style = MaterialTheme.typography.titleSmall,
         )
     }
@@ -317,8 +345,9 @@ private fun DeviceCard(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(16.dp))
             .background(Constants.cardBackground)
+            .border(BorderStroke(1.dp, Constants.cardBorderColor), RoundedCornerShape(16.dp))
             .clickable(onClick = onClick)
             .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -326,7 +355,7 @@ private fun DeviceCard(
         Box(
             modifier = Modifier
                 .size(40.dp)
-                .clip(CircleShape)
+                .clip(RoundedCornerShape(12.dp))
                 .background(Constants.cardBackgroundElevated),
             contentAlignment = Alignment.Center,
         ) {
@@ -334,12 +363,13 @@ private fun DeviceCard(
         }
         Spacer(Modifier.size(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, color = Constants.primaryTextColor, fontSize = 16.sp)
+            Text(title, color = Constants.primaryTextColor, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
             Text(subtitle, color = Constants.secondaryTextColor, fontSize = 12.sp)
         }
         Box(
             modifier = Modifier
                 .size(8.dp)
+                .shadow(elevation = 4.dp, shape = CircleShape, ambientColor = statusColor, spotColor = statusColor)
                 .clip(CircleShape)
                 .background(statusColor),
         )

@@ -1,7 +1,9 @@
 package com.example.peciwearables.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -100,7 +102,9 @@ fun HeadTrackingCard(
         Spacer(Modifier.height(6.dp))
         Column(
             modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
-                .background(Constants.cardBackground).padding(12.dp),
+                .background(Constants.cardBackground)
+                .border(BorderStroke(1.dp, Constants.cardBorderColor), RoundedCornerShape(12.dp))
+                .padding(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             when {

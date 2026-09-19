@@ -1,6 +1,8 @@
 package com.example.peciwearables
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -61,6 +63,7 @@ fun InfoBox(
             .padding(horizontal = 16.dp, vertical = 6.dp)
             .clip(RoundedCornerShape(16.dp))
             .background(Constants.cardBackground)
+            .border(BorderStroke(1.dp, Constants.cardBorderColor), RoundedCornerShape(16.dp))
             .then(
                 if (modalContent != null) Modifier.clickable { showModal = true }
                 else Modifier
