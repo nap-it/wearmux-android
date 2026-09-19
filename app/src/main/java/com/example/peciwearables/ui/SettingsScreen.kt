@@ -58,13 +58,11 @@ import com.example.peciwearables.integration.GlassesConnectionMode
 import com.example.peciwearables.integration.GlassesNetworkStatusResolver
 import com.example.peciwearables.integration.GlassesSettingsStore
 import com.example.peciwearables.integration.MlProcessingLocation
-import com.example.peciwearables.integration.adapters.BleDeviceState
 import com.example.peciwearables.integration.api.MqttConfig
 
 @Composable
 fun SettingsScreen(viewModel: AppViewModel, onOpenDiagnostics: () -> Unit, onBack: () -> Unit) {
     val glassesState by viewModel.glassesState.collectAsStateWithLifecycle()
-    val wristbandState by viewModel.wristbandState.collectAsStateWithLifecycle()
     val udpActive by viewModel.udpActive.collectAsStateWithLifecycle()
     val udpServerActive by viewModel.udpServerActive.collectAsStateWithLifecycle()
     val glassesIp by viewModel.glassesIp.collectAsStateWithLifecycle()
@@ -90,8 +88,6 @@ fun SettingsScreen(viewModel: AppViewModel, onOpenDiagnostics: () -> Unit, onBac
     var glassesCameraResolutionInput by remember { mutableStateOf("480") }
     var glassesCameraQualityInput by remember { mutableStateOf("74") }
     var glassesCameraRateInput by remember { mutableStateOf("10") }
-    val glassesReady = glassesState == BleDeviceState.READY || glassesState == BleDeviceState.CONNECTED
-    val glassesCanSendWifi = glassesReady || udpActive || glassesState == BleDeviceState.CONNECTING
     val glassesNetworkStatus = GlassesNetworkStatusResolver.resolve(
         bleState = glassesState,
         udpServerActive = udpServerActive,
@@ -278,7 +274,7 @@ fun SettingsScreen(viewModel: AppViewModel, onOpenDiagnostics: () -> Unit, onBac
             colors = ButtonDefaults.buttonColors(containerColor = Constants.accentColor),
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("Processing (IMU · Camera · Voice)…", color = Color.Black, fontSize = 13.sp)
+            Text("IMU inference", color = Color.Black, fontSize = 13.sp)
         }
         if (showProcessingDialog) {
             com.example.peciwearables.ui.ProcessingDialog(
@@ -308,15 +304,6 @@ fun SettingsScreen(viewModel: AppViewModel, onOpenDiagnostics: () -> Unit, onBac
             )
         }
 
-        // Wi-Fi inline removido daqui — agora vive no DeviceConnectionDialog
-        // (engrenagem ⚙ no card dos Omi na tab Info). Mantemos apenas o
-        // atalho rápido "Reconnect UDP" para quando a sessão cai.
-        OutlinedButton(
-            onClick = { viewModel.connectWifi() },
-            enabled = !udpActive && glassesCanSendWifi,
-            modifier = Modifier.fillMaxWidth(),
-        ) { Text("Reconnect UDP", fontSize = 12.sp) }
-
         if (glassesNetworkStatus.wifiSessionActive) {
             Text(
                 text = glassesNetworkStatus.sessionText,
@@ -331,30 +318,9 @@ fun SettingsScreen(viewModel: AppViewModel, onOpenDiagnostics: () -> Unit, onBac
             )
         }
 
-        // Desligar dispositivos já ligados — só aparece quando há algo ligado.
-        val glassesConnected = glassesState != BleDeviceState.DISCONNECTED && glassesState != BleDeviceState.ERROR
-        val wristbandConnected = wristbandState != BleDeviceState.DISCONNECTED && wristbandState != BleDeviceState.ERROR
-        if (glassesConnected || wristbandConnected) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                if (glassesConnected) {
-                    OutlinedButton(
-                        onClick = { viewModel.disconnectGlasses() },
-                        modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Constants.errorColor)
-                    ) { Text("Disconnect glasses", fontSize = 12.sp) }
-                }
-                if (wristbandConnected) {
-                    OutlinedButton(
-                        onClick = { viewModel.disconnectWristband() },
-                        modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Constants.errorColor)
-                    ) { Text("Disconnect wristband", fontSize = 12.sp) }
-                }
-            }
-        }
+        // Botões "Disconnect glasses" / "Disconnect wristband" removidos daqui
+        // — desligar cada dispositivo já é possível a partir do seu próprio
+        // card/dialog na tab Info; mantê-los aqui era redundante.
 
         // (Os botões "Ligar Omi" / "Ligar Sole" foram removidos daqui — já
         // existem nos cards da tab Info, evitando duplicação.)

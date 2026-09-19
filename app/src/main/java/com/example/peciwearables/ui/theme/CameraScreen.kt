@@ -368,6 +368,19 @@ fun CameraScreen(viewModel: AppViewModel) {
                             ) {
                                 Text("Stop Stream", color = Color.White)
                             }
+                        } else {
+                            // Stream parado mas ainda há um frame antigo em cache
+                            // (latestCameraBitmap não é limpo ao parar) — sem este
+                            // botão não havia forma de religar depois de parar.
+                            Button(
+                                onClick = { viewModel.startStream() },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7E57C2)),
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .padding(bottom = 12.dp)
+                            ) {
+                                Text("Start Stream", color = Color.White)
+                            }
                         }
                     } else {
                         val glassesReadyForStream = glassesStateForStream == BleDeviceState.READY ||
