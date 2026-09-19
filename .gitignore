@@ -33,3 +33,6 @@ Thumbs.db
 # Saidas locais de benchmark
 *.log
 benchmarks/
+
+# Brainstorming visual-companion scratch files
+.superpowers/
