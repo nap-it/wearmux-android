@@ -16,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -38,6 +39,20 @@ private const val STATUS_ALL_DEVICES = "all"
 
 fun deviceRoute(deviceId: DeviceId) = "device/${deviceId.name}"
 private fun statusRoute(deviceId: DeviceId?) = "status/${deviceId?.name ?: STATUS_ALL_DEVICES}"
+
+/**
+ * `popBackStack()` isn't re-entrant-safe: two calls fired from the same
+ * frame (e.g. a fast double-tap on a back button, or hitting both the
+ * back arrow and a "Manage devices"-style shortcut that also calls
+ * onBack) can each pop one entry before Compose has a chance to recompose
+ * and remove the button, popping one screen too many. When that empties
+ * the back stack below the graph's start destination, NavHost is left
+ * with no current destination to render — a black screen, with no crash.
+ * Guard by checking there's still a previous entry to go back to.
+ */
+private fun NavController.safePopBackStack() {
+    if (previousBackStackEntry != null) popBackStack()
+}
 
 /**
  * The two root destinations a Developer-Mode bottom bar switches between.
@@ -110,7 +125,7 @@ fun AppNavigation(viewModel: AppViewModel) {
                 DeviceDetailScreen(
                     viewModel = viewModel,
                     deviceId = deviceId,
-                    onBack = { navController.popBackStack() },
+                    onBack = { navController.safePopBackStack() },
                     onOpenStatus = { forDevice -> navController.navigate(statusRoute(forDevice)) },
                 )
             }
@@ -118,7 +133,7 @@ fun AppNavigation(viewModel: AppViewModel) {
                 SettingsScreen(
                     viewModel = viewModel,
                     onOpenDiagnostics = { navController.navigate(ROUTE_DEV_LAB) },
-                    onBack = { navController.popBackStack() },
+                    onBack = { navController.safePopBackStack() },
                 )
             }
             composable(ROUTE_DEV_LAB) {
@@ -132,7 +147,7 @@ fun AppNavigation(viewModel: AppViewModel) {
                 val filterDevice = deviceIdArg?.takeIf { it != STATUS_ALL_DEVICES }?.let { DeviceId.valueOf(it) }
                 EstadoScreen(
                     viewModel,
-                    onBack = { navController.popBackStack() },
+                    onBack = { navController.safePopBackStack() },
                     filterDevice = filterDevice,
                 )
             }
