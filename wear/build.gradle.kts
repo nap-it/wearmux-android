@@ -36,8 +36,6 @@ android {
     }
 }
 
-apply(from = rootProject.file("gradle/android-release.gradle.kts"))
-
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
