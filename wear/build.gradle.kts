@@ -13,8 +13,6 @@ android {
         applicationId = "com.example.peciwearables"
         minSdk = 34
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
         ndk {
             abiFilters.add("armeabi-v7a")
         }
@@ -37,6 +35,8 @@ android {
         compose = true
     }
 }
+
+apply(from = rootProject.file("gradle/android-release.gradle.kts"))
 
 dependencies {
     implementation(libs.androidx.core.ktx)

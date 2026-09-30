@@ -114,6 +114,10 @@ A Navisens developer key is optional and enables the trajectory view. Model setu
 
 ## Documentation and Demonstration
 
+Download versioned phone and Wear OS APKs from [GitHub Releases](https://github.com/nap-it/wearmux-android/releases), when published.
+
+For development builds, the [Build APKs workflow](.github/workflows/build-apks.yml) builds debug APKs when app code, models, or build configuration changes. Download `wearmux-phone-debug` and `wearmux-wear-debug` from the completed run's **Artifacts** section in the **Actions** tab.
+
 The [technical guide](docs/technical-guide.md) covers configuration, internal architecture, command-line control, server endpoints, MQTT, benchmarks, tests, and troubleshooting.
 
 The paper demonstrates the Android hub in outdoor pedestrian-assistance scenarios using smartglasses, a smartwatch, and a phone. Watch the [WearMux demonstration](https://youtu.be/r0GW5SRqzHw).

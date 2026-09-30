@@ -1,0 +1,165 @@
+name: Release APKs
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing version tag to build (for example, v1.0.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build signed APKs and prepare draft release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: write
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+
+    steps:
+      - name: Validate tag format
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo '::error::Release tags must have the form vMAJOR.MINOR.PATCH.'
+            exit 1
+          fi
+
+      - name: Check out version tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: refs/tags/${{ inputs.tag || github.ref_name }}
+          persist-credentials: false
+
+      - name: Validate release version
+        run: |
+          version_name=$(sed -n 's/^wearmux.versionName=//p' gradle.properties)
+          version_code=$(sed -n 's/^wearmux.versionCode=//p' gradle.properties)
+          if [[ "$RELEASE_TAG" != "v$version_name" ]]; then
+            echo '::error::The tag must match wearmux.versionName in gradle.properties.'
+            exit 1
+          fi
+          if [[ ! "$version_code" =~ ^[1-9][0-9]{0,9}$ ]] || (( version_code > 2100000000 )); then
+            echo '::error::wearmux.versionCode must be between 1 and 2100000000.'
+            exit 1
+          fi
+
+      - name: Set up Java
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6
+        with:
+          distribution: jetbrains
+          java-version: '21'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0 ndk;26.3.11579264 cmake;3.22.1'
+          log-accepted-android-sdk-licenses: false
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        with:
+          cache-provider: basic
+
+      - name: Decode release keystore
+        env:
+          WEARMUX_KEYSTORE_BASE64: ${{ secrets.WEARMUX_KEYSTORE_BASE64 }}
+          WEARMUX_KEYSTORE_PASSWORD: ${{ secrets.WEARMUX_KEYSTORE_PASSWORD }}
+          WEARMUX_KEY_ALIAS: ${{ secrets.WEARMUX_KEY_ALIAS }}
+          WEARMUX_KEY_PASSWORD: ${{ secrets.WEARMUX_KEY_PASSWORD }}
+        run: |
+          : "${WEARMUX_KEYSTORE_BASE64:?Set the WEARMUX_KEYSTORE_BASE64 repository secret}"
+          : "${WEARMUX_KEYSTORE_PASSWORD:?Set the WEARMUX_KEYSTORE_PASSWORD repository secret}"
+          : "${WEARMUX_KEY_ALIAS:?Set the WEARMUX_KEY_ALIAS repository secret}"
+          : "${WEARMUX_KEY_PASSWORD:?Set the WEARMUX_KEY_PASSWORD repository secret}"
+          umask 077
+          printf '%s' "$WEARMUX_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/wearmux-release.keystore"
+
+      - name: Test and build signed release APKs
+        env:
+          WEARMUX_KEYSTORE_PATH: ${{ runner.temp }}/wearmux-release.keystore
+          WEARMUX_KEYSTORE_PASSWORD: ${{ secrets.WEARMUX_KEYSTORE_PASSWORD }}
+          WEARMUX_KEY_ALIAS: ${{ secrets.WEARMUX_KEY_ALIAS }}
+          WEARMUX_KEY_PASSWORD: ${{ secrets.WEARMUX_KEY_PASSWORD }}
+          NAVISENS_DEVELOPER_KEY: ${{ secrets.NAVISENS_DEVELOPER_KEY }}
+        run: ./gradlew --no-daemon --stacktrace :app:testDebugUnitTest :app:assembleRelease :wear:assembleRelease
+
+      - name: Verify and package APKs
+        run: |
+          mkdir -p release-artifacts
+          cp app/build/outputs/apk/release/app-release.apk "release-artifacts/wearmux-phone-$RELEASE_TAG.apk"
+          cp wear/build/outputs/apk/release/wear-release.apk "release-artifacts/wearmux-wear-$RELEASE_TAG.apk"
+          apksigner="$ANDROID_HOME/build-tools/36.0.0/apksigner"
+          aapt="$ANDROID_HOME/build-tools/36.0.0/aapt"
+          version_code=$(sed -n 's/^wearmux.versionCode=//p' gradle.properties)
+          expected_certificate=''
+          for apk in release-artifacts/*.apk; do
+            "$apksigner" verify --verbose --print-certs "$apk" > "$RUNNER_TEMP/apk-certificate.txt"
+            certificate=$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' "$RUNNER_TEMP/apk-certificate.txt")
+            if [[ -z "$certificate" ]] || [[ -n "$expected_certificate" && "$certificate" != "$expected_certificate" ]]; then
+              echo '::error::The phone and Wear OS APKs must have matching signing certificates.'
+              exit 1
+            fi
+            expected_certificate="$certificate"
+            "$aapt" dump badging "$apk" > "$RUNNER_TEMP/apk-badging.txt"
+            if ! grep -F "package: name='com.example.peciwearables' versionCode='$version_code' versionName='${RELEASE_TAG#v}'" "$RUNNER_TEMP/apk-badging.txt"; then
+              echo '::error::The APK package name or version does not match the release.'
+              exit 1
+            fi
+          done
+          cd release-artifacts
+          sha256sum ./*.apk > SHA256SUMS
+
+      - name: Save release build artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: wearmux-release-${{ inputs.tag || github.ref_name }}
+          path: release-artifacts/
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - name: Create or update draft GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if gh release view "$RELEASE_TAG" --json isDraft > "$RUNNER_TEMP/release.json"; then
+            if ! jq -e '.isDraft == true' "$RUNNER_TEMP/release.json" > /dev/null; then
+              echo '::error::This release is already published. Create a new version instead of replacing its APKs.'
+              exit 1
+            fi
+            gh release upload "$RELEASE_TAG" release-artifacts/* --clobber
+          else
+            cat > "$RUNNER_TEMP/release-notes.md" <<'NOTES'
+          Signed WearMux phone and Wear OS APKs, plus SHA-256 checksums.
+
+          - Phone: Android 14+ (API 34), arm64-v8a. Download and install the phone APK.
+          - Watch: Wear OS API 34+, compatible with armeabi-v7a. Pair it to the phone, then install the watch APK with ADB.
+          - The optional Navisens trajectory view requires a developer key configured when building.
+
+          Install both APKs from this release. Switching from a debug build requires uninstalling it first because the signing certificate differs.
+          NOTES
+            gh release create "$RELEASE_TAG" release-artifacts/* \
+              --verify-tag --draft --title "WearMux $RELEASE_TAG" \
+              --notes-file "$RUNNER_TEMP/release-notes.md" --generate-notes
+          fi
+
+      - name: Remove temporary keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/wearmux-release.keystore"

@@ -48,8 +48,6 @@ android {
         applicationId = "com.example.peciwearables"
         minSdk = 34
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -104,6 +102,8 @@ android {
         disable += "InvalidFragmentVersionForActivityResult"
     }
 }
+
+apply(from = rootProject.file("gradle/android-release.gradle.kts"))
 
 dependencies {
     implementation(libs.androidx.core.ktx)
