@@ -1,335 +1,133 @@
-# WearMux — Android hub
+# WearMux — Android Hub
 
-This repository contains the smartphone hub application and its Wear OS companion. The hub connects heterogeneous wearables through capability-oriented adapters, processes camera, audio, inertial and context data on the phone, and either consumes the results locally or offloads them to a server.
+WearMux brings smartglasses, wristbands, smartwatches, and smartphone sensors together in one Android application. It collects images, audio, motion, and location data, runs selected processing on the phone or a remote server, and delivers feedback through audio, vibration, and wearable notifications.
 
-It is the Android host described in the WearMux paper. The headless Node.js host and the server-side services live in separate repositories.
+This repository contains the Android hub and its Wear OS companion, developed for research into multimodal sensing and interactive wearable applications. The [headless research tool](https://github.com/nap-it/wearmux-headless) is maintained separately.
 
-### Citation
+## Key Features
 
-If you find this code useful in your research, please consider citing:
+- **Multiple wearables, one hub:** connect compatible devices through Bluetooth Low Energy, Wi-Fi/UDP, and the Wear OS Data Layer.
+- **Multimodal acquisition:** combine camera, microphone, inertial, heart-rate, and location data from wearables and the phone.
+- **Flexible processing:** run supported activity, vision, and audio processing locally or use optional remote services; compatible wristbands also support on-device activity inference.
+- **Wearable feedback:** deliver audio alerts, vibration, and watch notifications through connected devices.
+- **Live monitoring and recording:** inspect incoming streams, record routes, and capture measurements for experiments.
+- **Application integration:** share observations through HTTP, WebSocket, and optional MQTT connections, with a common hub timestamp.
+
+## Citation
+
+If you use WearMux in your research, please consider citing *WearMux: Real-Time Multimodal Sensing and Feedback across Heterogeneous Wearables*.
+
+The entry below is based on the WPMC 2026 manuscript. Final proceedings metadata and a DOI have not yet been verified.
 
 ```bibtex
-@INPROCEEDINGS{Tavares2026,
-    author={Guilherme Tavares and Rafael Soares and André Clérigo and Gonçalo Silva and Gabriel Silva and Tomás Cruz and João Abrunhosa and Pedro Laredo and Pedro Rito and Susana Sargento},
-    booktitle={2026 IEEE 29th International Symposium on Personal, Indoor and Mobile Radio Communications (WPMC)},
-    title={WearMux: Real-Time Multimodal Sensing and Feedback across Heterogeneous Wearables}
+@unpublished{Tavares2026WearMux,
+    author = {Tavares, Guilherme and Soares, Rafael and Clérigo, André and Silva, Gonçalo and Silva, Gabriel and Cruz, Tomás and Abrunhosa, João and Laredo, Pedro and Rito, Pedro and Sargento, Susana},
+    title = {{WearMux}: Real-Time Multimodal Sensing and Feedback across Heterogeneous Wearables},
+    year = {2026},
+    note = {WPMC 2026 manuscript}
 }
 ```
 
-## Repository contents
+## Table of Contents
 
-```text
-.
-├── app/                    # Android smartphone hub application
-│   └── src/
-│       ├── main/           # Kotlin/Compose app, integration layer, native whisper.cpp
-│       ├── test/           # JVM unit tests
-│       └── androidTest/    # Android instrumentation tests
-├── wear/                   # Wear OS companion application
-├── models/                 # TFLite models copied into the app assets at build time
-├── scripts/                # Helper scripts (YAMNet download, watch test)
-├── gradle/                 # Gradle version catalog and wrapper
-├── build.gradle.kts
-├── settings.gradle.kts
-└── gradlew
-```
+- [WearMux — Android Hub](#wearmux--android-hub)
+  - [Key Features](#key-features)
+  - [Citation](#citation)
+  - [Table of Contents](#table-of-contents)
+  - [How It Works](#how-it-works)
+  - [Supported Devices](#supported-devices)
+  - [Requirements](#requirements)
+  - [Quick Start](#quick-start)
+  - [Basic Usage](#basic-usage)
+  - [Documentation and Demonstration](#documentation-and-demonstration)
+  - [Authors and Contact](#authors-and-contact)
+  - [License](#license)
 
-The integration layer under `app/src/main/java/com/example/peciwearables/integration/` follows the architecture figure in the paper, one package per block:
+## How It Works
 
-```text
-integration/
-├── hub/          Device hub: discovery, adapter selection, session ownership
-├── adapters/     Adapters and sessions, including the per-device BLE clients
-│   └── devices/  omi, brilliantsole, esp32, galaxywatch
-├── modules/      Modality processing
-│   ├── camera/       JPEG assembly, stream metrics, phone and glasses frames
-│   ├── microphone/   PCM pipeline, Opus decoding, WAV capture, KWS/STT sessions
-│   ├── sensors/      IMU fusion, sample-rate policy
-│   ├── context/      GPS, pedestrian dead reckoning, route recording
-│   ├── android/      Phone camera, microphone, sensors, audio output
-│   └── wearos/       Watch client, protocol and action routing
-├── observation/  Timestamper: the hub timestamp carried by every observation
-├── api/          HTTP, WebSocket and MQTT clients for the remote services
-├── output/       Output dispatcher: alerts to the watch, wristband and phone
-├── consumer/     Local consumer: telemetry reporting
-├── safety/       Use-case logic and decision mapping
-├── protocol/     Wire formats (packet headers, TLV, IMU payloads)
-├── udp/          UDP session handling for the Wi-Fi image path
-└── network/      NSD registration, Wi-Fi locks, interface helpers
-```
+The phone acts as the hub between wearable devices and applications. Device adapters expose sensing and feedback capabilities, so the acquisition and processing modules can work with different sources: an image can come from glasses or the phone, while motion can come from a wristband, watch, or phone.
 
-## Supported devices
+Collected observations can be consumed locally or sent to external services. Results can then trigger feedback on the phone or connected wearables. A foreground service manages connections and acquisition during use.
 
-| Device | Transport | Capabilities exposed to the hub |
+![WearMux system overview showing wearable sensors, Android and headless hosts, application services, and feedback to devices.](docs/images/wearmux-overview.png)
+
+*Figure 1 from the WearMux manuscript. The overview includes both hosts; this repository implements the Android path.*
+
+## Supported Devices
+
+| Device | Connection | Main capabilities |
 | --- | --- | --- |
-| Omi AI glasses (ESP-based) | BLE GATT, Wi-Fi/UDP | Camera, microphone, 9-DoF IMU, Wi-Fi handoff |
-| Brilliant Wear wristband/insole | BLE GATT | 9-DoF IMU, haptics, on-device ML |
-| Wear OS watch | Wear OS Data Layer | IMU, heart rate, audiovisual alerts, vibration |
-| ESP32-S3 camera board | Wi-Fi/UDP | Camera, IMU |
-| The phone itself | Local Android APIs | Camera, microphone, IMU, GPS, audio alerts |
+| Omi AI glasses | BLE; Wi-Fi/UDP for camera streaming | Camera, microphone, inertial sensing |
+| Brilliant Wear / Brilliant Sole wristband and insole | BLE | Inertial sensing, haptics, on-device activity inference |
+| Galaxy Watch / Wear OS companion | Wear OS Data Layer | Inertial sensing, heart rate, notifications, vibration |
+| ESP32-S3 camera board | Wi-Fi/UDP | Camera, inertial sensing |
+| Android smartphone | Local Android APIs | Camera, microphone, inertial sensing, GPS, audio feedback |
 
-Adding a device means writing an adapter and a session under `integration/adapters/devices/`. Nothing above the adapter layer refers to a device by brand; the UI and the pipelines reason about capabilities.
+Available capabilities depend on the device hardware and compatible firmware. The Android and headless hosts have different device coverage.
 
 ## Requirements
 
-- Android Studio with Android SDK 36 installed
-- JDK 17 or newer (the build has been exercised with JDK 17; Gradle 9.1 ships with the wrapper)
-- Phone running Android 14 (API 34) or newer, `arm64-v8a`
-- Wear OS device running API 34 or newer for the companion module, `armeabi-v7a`
-- A machine running the WearMux server repository if you intend to use offloaded inference
+- Android Studio, Android SDK 36, and JDK 17 or newer.
+- An Android 14 (API 34) or newer phone with Bluetooth Low Energy and an `arm64-v8a` processor.
+- For watch features: a paired Wear OS device with API 34 or newer, compatible with the companion's `armeabi-v7a` build.
+- For remote processing: a compatible WearMux server reachable from the phone. Local operation does not require a server.
 
-Bluetooth Low Energy is required. The camera is optional at the manifest level, so the app installs on devices without one.
+A Navisens developer key is optional and enables the trajectory view. Model setup and other optional components are described in the [technical guide](docs/technical-guide.md#local-configuration).
 
-## Local configuration
+## Quick Start
 
-### SDK location
+1. Clone the repository and open it in Android Studio:
 
-Gradle reads the SDK path from `local.properties`, which is not tracked. Android Studio writes it on first open; to create it by hand:
+   ```bash
+   git clone https://github.com/nap-it/wearmux-android.git
+   cd wearmux-android
+   ```
 
-```properties
-sdk.dir=/path/to/Android/Sdk
-```
+2. Let Android Studio configure the SDK location and sync the project. Build the phone app:
 
-### Navisens developer key
+   ```bash
+   ./gradlew :app:assembleDebug
+   ```
 
-The trajectory view is backed by Navisens and needs a developer key. The key is not stored in the repository; it is injected into the `navisens_developer_key` string resource at build time. Supply it through **one** of the following:
+3. Connect an Android phone with USB debugging enabled and install the app:
 
-1. Add this line to the untracked `local.properties` file:
+   ```bash
+   ./gradlew :app:installDebug
+   ```
 
-```properties
-NAVISENS_DEVELOPER_KEY=your_key_here
-```
+4. If you use a watch, build and install the companion on the paired watch:
 
-2. Export an environment variable before building:
+   ```bash
+   ./gradlew :wear:assembleDebug
+   ./gradlew :wear:installDebug
+   ```
 
-```bash
-export NAVISENS_DEVELOPER_KEY=your_key_here
-```
+   If multiple devices are connected, use `adb -s <device-serial> install -r <apk-path>` to choose the installation target. See the [build instructions](docs/technical-guide.md#build) for APK paths.
 
-3. Pass a Gradle property:
+## Basic Usage
 
-```bash
-./gradlew :app:assembleDebug -PNAVISENS_DEVELOPER_KEY=your_key_here
-```
+1. Launch the phone app and grant the permissions requested for the features you use, including nearby devices, location, camera, microphone, and notifications.
+2. Select **Search Wearables** on the home screen, scan for compatible devices, and connect a wearable. For the watch, install the companion and pair it with the phone first.
+3. Open the connected device's details or status view to inspect streams and configure sensing. Omi glasses connect over BLE first and can switch camera streaming to Wi-Fi/UDP.
+4. Use **Settings** to choose supported processing options, configure a remote server if needed, and set alert preferences.
+5. Monitor incoming data and feedback, or record a route for an experiment.
 
-If no key is supplied the generated string is empty and the trajectory view stays inactive; every other feature builds and runs normally.
+## Documentation and Demonstration
 
-### Server address
+The [technical guide](docs/technical-guide.md) covers configuration, internal architecture, command-line control, server endpoints, MQTT, benchmarks, tests, and troubleshooting.
 
-The compiled default is `http://172.20.10.2:8080`, defined in `integration/CloudConfig.kt`, with the keyword spotter on port 9091 and the streaming transcriber on 9090. You do not need to rebuild to change it: open **Settings** in the app and set the unified server URL. The value is stored in shared preferences and reused on the next start.
+The paper demonstrates the Android hub in outdoor pedestrian-assistance scenarios using smartglasses, a smartwatch, and a phone. Watch the [WearMux demonstration](https://youtu.be/r0GW5SRqzHw).
 
-### Wearable Wi-Fi credentials
+For unattended acquisition and distributed research workflows, see [WearMux Headless](https://github.com/nap-it/wearmux-headless).
 
-The glasses join the same network as the phone. The dialog under **Devices** asks only for the password; nothing is stored in the repository.
+## Authors and Contact
 
-### TFLite models
+Development of WearMux Android is part of ongoing research work at [Instituto de Telecomunicações' Network Architectures and Protocols Group](https://www.it.pt/Groups/Index/36).
 
-`app/build.gradle.kts` copies the models from `models/` into `app/src/main/assets` before every build. The phone classifier becomes `peci_model.tflite` and the wristband model becomes `trained.tflite`. YAMNet, used for ambient sound classification, is optional and can be fetched with `scripts/download_yamnet.sh`; without it that path falls back to an RMS heuristic.
+Questions and bug reports: [andreclerigo@ua.pt](mailto:andreclerigo@ua.pt) / [gavftavares@ua.pt](mailto:gavftavares@ua.pt) / [rafael.feliciano@ua.pt](mailto:rafael.feliciano@ua.pt)
 
-### Native transcription
+## License
 
-If `app/src/main/cpp/whisper.cpp/src/whisper.cpp` is present the build compiles the native library and on-device transcription becomes available. If the directory is absent the build skips CMake entirely and the app still compiles.
+WearMux Android is licensed under the **GNU General Public License v3.0 (GPL-3.0)**. See [LICENSE](LICENSE) for the full terms.
 
-## Build
-
-From the repository root:
-
-```bash
-# Build the Android phone app
-./gradlew :app:assembleDebug
-
-# Run JVM unit tests
-./gradlew :app:testDebugUnitTest
-
-# Build the Wear OS companion
-./gradlew :wear:assembleDebug
-```
-
-Installation on connected devices:
-
-```bash
-./gradlew :app:installDebug
-./gradlew :wear:installDebug
-```
-
-When both a phone and a watch are attached, pass the serial to disambiguate:
-
-```bash
-adb -s <serial> install -r app/build/outputs/apk/debug/app-debug.apk
-```
-
-## Running the application
-
-### First start
-
-Grant the permissions the app requests on launch: camera, microphone, location, nearby devices and notifications. Location is required by Android for BLE scanning even when you do not use GPS, and the foreground service will not start without notification permission.
-
-The app runs its work inside a foreground service, so acquisition survives the screen turning off. A persistent notification indicates that the service is active.
-
-### Screens
-
-- **Devices** — scan, connect and disconnect wearables. Shows connection state, battery, firmware and signal strength per device, and holds the dialogs for Wi-Fi handoff and camera/microphone profiles.
-- **Status** — live view of what the hub is receiving: camera preview, IMU streams, GPS and dead-reckoning position, watch state, safety decisions and the event log.
-- **Dev** — hidden unless developer mode is enabled in Settings. Raw logs, latency benchmarks, UDP diagnostics and per-use-case toggles.
-- **Settings** — server URL, processing location, alert preferences and developer mode.
-
-### Connecting a wearable
-
-1. Open **Devices** and start a scan.
-2. Pick a candidate from the list, or use automatic connection to take the first compatible device.
-3. The hub reads the advertising data to choose a likely adapter, connects, and only confirms the match after reading the services the device actually exposes. A confirmed connection produces a session that advertises its capabilities.
-4. For the glasses over Wi-Fi, connect over BLE first, then use the Wi-Fi dialog. The device joins the phone network and reports its address back over BLE; the image stream then moves to UDP.
-
-The Wear OS companion needs no scanning. Install it, and the phone and watch find each other through the Data Layer.
-
-### Choosing where inference runs
-
-Activity classification can run in three places, selected in Settings:
-
-- **Phone** — TFLite model on the handset
-- **Wristband** — model uploaded to the wearable, inference on-device, result delivered over BLE
-- **Server** — features posted to the configured endpoint
-
-Object detection and depth estimation are selected per mode in the camera view: local ONNX inference on the phone, or the remote services when the server URL is set.
-
-Changing the processing location also changes the sensor sample rate the hub asks the wearable for. On-device inference needs 10 ms; when the camera or microphone is competing for the radio the rate drops to 200 ms; otherwise it is 50 ms.
-
-### Recording routes
-
-Under **Status**, start a route recording to capture a trajectory from GPS and dead reckoning. Routes are saved on the device, can be reactivated later, and are used by the crossing-zone logic.
-
-### Benchmarks
-
-Latency runs write CSV files to the app external files directory:
-
-```bash
-adb shell ls /sdcard/Android/data/com.example.peciwearables/files/benchmarks
-adb pull /sdcard/Android/data/com.example.peciwearables/files/benchmarks .
-```
-
-One file per path: `yolo_latency.csv`, `depth_latency.csv`, `kws_latency.csv`, `decisions_latency.csv` and the camera and microphone transport measurements. Every row carries the hub timestamp, so rows from different sources can be aligned.
-
-## Driving the app from the command line
-
-The service accepts broadcasts, which is the practical way to script a measurement session without touching the screen. The receiver forwards them to the service unchanged.
-
-```bash
-# Start and stop the foreground service
-adb shell am broadcast -a com.example.peciwearables.START_SERVICE
-adb shell am broadcast -a com.example.peciwearables.STOP_SERVICE
-
-# Connect devices
-adb shell am broadcast -a com.example.peciwearables.CONNECT_GLASSES
-adb shell am broadcast -a com.example.peciwearables.CONNECT_WRISTBAND
-adb shell am broadcast -a com.example.peciwearables.CONNECT_AUTO
-
-# Camera and microphone
-adb shell am broadcast -a com.example.peciwearables.TAKE_PICTURE
-adb shell am broadcast -a com.example.peciwearables.START_STREAM
-adb shell am broadcast -a com.example.peciwearables.STOP_STREAM
-adb shell am broadcast -a com.example.peciwearables.START_MICROPHONE
-
-# Move the glasses to Wi-Fi, then open the UDP session on the address they report
-adb shell am broadcast -a com.example.peciwearables.SEND_WIFI --es ssid MyNetwork --es password secret
-adb shell am broadcast -a com.example.peciwearables.CONNECT_UDP
-
-# Select where activity inference runs: APP, WRISTBAND or SERVER
-adb shell am broadcast -a com.example.peciwearables.SET_ML_PROCESSING_LOCATION \
-  --es ml_processing_location WRISTBAND
-
-# Point the hub at a server without opening Settings
-adb shell am broadcast -a com.example.peciwearables.UNIFIED_SERVER_SET_URL \
-  --es unified_server_url http://192.168.1.50:8080
-```
-
-`CONNECT_UDP` takes no address: the glasses report theirs over BLE after the Wi-Fi handoff, and the hub uses that. The full list of actions and extras is in `integration/WearableServiceActions.kt`.
-
-## Watching the logs
-
-```bash
-adb logcat -s WearableService:D SafetyLog:D CloudInference:D SherpaKwsClient:D
-```
-
-Lines prefixed with `BENCH|` carry the latency measurements that also reach the CSV files.
-
-## Talking to the server
-
-The hub expects the WearMux server on the address configured in Settings:
-
-| Purpose | Endpoint |
-| --- | --- |
-| Object detection | `POST {base}/detect` |
-| Depth estimation | `POST {base}/depth` |
-| Scene description | `POST {base}/inputs/visual_assistant` |
-| Keyword and transcription events | `POST {base}/inputs/audio_stt` |
-| Head pose | `POST {base}/inputs/glasses_pose` |
-| Telemetry and returned decisions | `POST {base}/telemetry` |
-| Keyword spotting stream | `ws://{host}:9091` |
-| Streaming transcription | `ws://{host}:9090` |
-
-Every request carries `hub_timestamp`, stamped when the observation left acquisition rather than when the request was built. The server never replaces it; that value is what lets the fusion engine correlate motion, vision and speech coming from different devices.
-
-### Publishing over MQTT
-
-Besides the HTTP and WebSocket paths above, the hub can publish its outgoing observations to an MQTT broker. This is a second transport for the same payloads, not a replacement: the HTTP path keeps working regardless, and a broker that is unreachable never blocks or breaks it.
-
-It is off until a broker is configured. Under Settings, enable **Publish observations over MQTT** and fill in the broker and the topic prefix, or do it from a terminal:
-
-```bash
-adb shell am broadcast -a com.example.peciwearables.MQTT_SET_CONFIG \
-  --es mqtt_broker_url tcp://192.168.1.50:1883 \
-  --es mqtt_topic_prefix wearmux \
-  --ez mqtt_enabled true
-```
-
-The broker may be given as `host`, `host:port` or a full URL; the scheme defaults to `tcp://` and the port to 1883. Settings persist across restarts.
-
-One topic per modality, named after the equivalent HTTP route:
-
-| Topic | Payload |
-| --- | --- |
-| `<prefix>/telemetry` | Position, motion state, device state, zones |
-| `<prefix>/inputs/audio_stt` | Keyword and transcription events |
-| `<prefix>/inputs/glasses_pose` | Head orientation |
-
-The payload published on a topic is byte-for-byte the JSON body sent to the matching HTTP route, `hub_timestamp` included. Requests that need an answer, such as object detection and depth estimation, stay on HTTP; MQTT carries only the one-way observation flow.
-
-Checking what is being published, with a broker running on the same host:
-
-```bash
-mosquitto_sub -h 192.168.1.50 -t 'wearmux/#' -v
-```
-
-The phone is a client, not a broker. The broker is a separate program that normally runs on the server machine, which is the side of the link the architecture figure puts it on; this repository does not ship one. Any MQTT 3.1.1 broker works and Mosquitto is the usual choice. On the server side, `mqtt_bridge.py` in the server repository subscribes to these topics and feeds them to the same routes the HTTP path uses, so enabling MQTT does not change what the server does with an observation.
-
-Publishing uses QoS 0, which suits observations that are only useful while they are recent. The connection is plain `tcp://` with no credentials: it is meant for a lab network, and a deployment outside one needs authentication and TLS added on both sides.
-
-## Wear OS companion
-
-The `wear` module streams wrist IMU to the phone and renders alerts. It holds the alert activity, vibration patterns, beeps, the notifier, the phone command listener and the state mirror that keeps the watch face in sync with the hub. Commands and acknowledgements travel over the Data Layer using the shared protocol in `WatchProtocol.kt`.
-
-## Tests
-
-```bash
-./gradlew :app:testDebugUnitTest
-```
-
-The JVM suite covers the protocol parsers, the camera and audio pipelines, the adapter registry and session lifecycle, the safety evaluators, the sample-rate policy and the hub timestamp contract. Instrumentation tests under `app/src/androidTest` need a connected device:
-
-```bash
-./gradlew :app:connectedDebugAndroidTest
-```
-
-## Troubleshooting
-
-**Scanning finds nothing.** Location permission must be granted and location services switched on; Android blocks BLE results otherwise. Check that the wearable is not already connected to another phone.
-
-**The glasses connect but no images arrive.** Confirm the camera profile under Devices. Over BLE the throughput limits the frame rate; if you need a higher rate, move the device to Wi-Fi and let the UDP session take over.
-
-**The Wi-Fi session drops and does not come back.** The hub runs a watchdog that reconnects and falls back to BLE. Watch `WearableService` logs for `UDP DBG` lines. Keeping the phone screen on during long captures avoids Wi-Fi power-saving behaviour on some handsets.
-
-**Cloud features do nothing.** Check the server URL in Settings, and that the phone and server are on the same network. `GET {base}/health` from the phone browser is the quickest confirmation.
-
-**The watch does not appear.** Both apps must be installed and the watch paired to the same phone. The companion is a separate APK; installing the phone app alone is not enough.
-
-**Build fails on the native library.** Remove or ignore the whisper.cpp directory to build without on-device transcription; the Gradle script detects its absence and skips CMake.
+Bundled third-party components retain their own license notices, including the MIT-licensed [whisper.cpp](app/src/main/cpp/whisper.cpp/LICENSE).
