@@ -36,7 +36,7 @@ class PhoneMicrophoneRecorder(
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
             != PackageManager.PERMISSION_GRANTED
         ) {
-            Log.w(TAG, "RECORD_AUDIO not granted — no phone audio for Whisper")
+            Log.w(TAG, "RECORD_AUDIO not granted — no phone audio for keyword spotting")
             return false
         }
         val minBuf = AudioRecord.getMinBufferSize(SAMPLE_RATE, CHANNEL, ENCODING)

@@ -133,5 +133,3 @@ Questions and bug reports: [andreclerigo@ua.pt](mailto:andreclerigo@ua.pt) / [ga
 ## License
 
 WearMux Android is licensed under the **GNU General Public License v3.0 (GPL-3.0)**. See [LICENSE](LICENSE) for the full terms.
-
-Bundled third-party components retain their own license notices, including the MIT-licensed [whisper.cpp](app/src/main/cpp/whisper.cpp/LICENSE).

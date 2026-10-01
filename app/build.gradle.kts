@@ -21,8 +21,6 @@ val navisensDeveloperKey: String = run {
 
 val appModelTflite = file("../models/app/peci-edge-cpp-android-v9-impulse-#1/tflite-model/tflite_learn_937255_4.tflite")
 val wristbandModelTflite = file("../models/wristband/peci-edge-custom-v17-impulse-#1/trained.tflite")
-val whisperCppCore = file("src/main/cpp/whisper.cpp/src/whisper.cpp")
-val enableWhisperNative = whisperCppCore.exists()
 
 val syncMlModelAssets by tasks.registering(Copy::class) {
     from(appModelTflite) {
@@ -56,26 +54,6 @@ android {
         ndk {
             abiFilters.add("arm64-v8a")
         }
-
-        if (enableWhisperNative) {
-            externalNativeBuild {
-                cmake {
-                    cppFlags += listOf("-std=c++17", "-fexceptions")
-                    arguments += listOf("-DANDROID_STL=c++_static")
-                }
-            }
-        }
-    }
-
-    if (enableWhisperNative) {
-        externalNativeBuild {
-            cmake {
-                path = file("src/main/cpp/CMakeLists.txt")
-                version = "3.22.1"
-            }
-        }
-
-        ndkVersion = "26.3.11579264"
     }
 
     buildTypes {

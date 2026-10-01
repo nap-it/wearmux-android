@@ -1,5 +1,6 @@
 # Gradle
 .gradle/
+.kotlin/
 build/
 !gradle/wrapper/gradle-wrapper.jar
 
@@ -14,10 +15,6 @@ captures/
 *.dex
 *.keystore
 *.jks
-
-# Native build (whisper.cpp)
-app/.cxx/
-app/src/main/cpp/**/build/
 
 # IDE
 .idea/

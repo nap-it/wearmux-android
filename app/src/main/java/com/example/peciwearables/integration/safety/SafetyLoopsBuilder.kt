@@ -10,7 +10,7 @@ import com.example.peciwearables.integration.modules.android.AudioTestEngine
 import com.example.peciwearables.integration.modules.android.PhoneGpsLocation
 import com.example.peciwearables.integration.modules.android.TextToSpeechEngine
 import com.example.peciwearables.integration.modules.microphone.AmbientSoundClassifier
-import com.example.peciwearables.integration.modules.microphone.stt.WhisperSegment
+import com.example.peciwearables.integration.modules.microphone.stt.SpeechSegment
 import com.example.peciwearables.integration.modules.wearos.WatchClient
 import com.example.peciwearables.integration.modules.wearos.WatchProtocol
 import kotlinx.coroutines.CoroutineScope
@@ -50,8 +50,8 @@ class SafetyLoopsBuilder(
         val watchState: StateFlow<WatchClient.State>,
         val phoneGps: StateFlow<PhoneGpsLocation?>,
         val pedestrianDecision: StateFlow<PedestrianSafetyDecision>,
-        val lastWhisperText: MutableStateFlow<String>,
-        val whisperTranscription: MutableStateFlow<List<WhisperSegment>>,
+        val lastRecognizedText: MutableStateFlow<String>,
+        val speechSegments: MutableStateFlow<List<SpeechSegment>>,
         val vehicleApproachDecision: MutableStateFlow<VehicleApproachEvaluator.Decision>,
         val cyclistMode: StateFlow<CyclistModeDetector.Mode>,
     )
@@ -93,7 +93,7 @@ class SafetyLoopsBuilder(
             uc2Enabled = gates.uc2Enabled, phoneGps = { flows.phoneGps.value },
             zones = { crossingZoneManager.zones.value },
             pedestrianDecision = { flows.pedestrianDecision.value },
-            lastWhisperText = flows.lastWhisperText,
+            lastRecognizedText = flows.lastRecognizedText,
             appendLog = appendLog, appendSafetyLog = appendSafetyLog,
         ).start(scope)
     }
@@ -128,9 +128,9 @@ class SafetyLoopsBuilder(
             },
             appendLog = appendLog, appendSafetyLog = appendSafetyLog,
         ).start(scope)
-        Uc45Loop(gates.uc4_5Enabled, flows.whisperTranscription, conversationTranscriber).start(scope)
+        Uc45Loop(gates.uc4_5Enabled, flows.speechSegments, conversationTranscriber).start(scope)
         Uc41Loop(
-            transcription = flows.whisperTranscription, frameProvider = callbacks.frameProvider,
+            transcription = flows.speechSegments, frameProvider = callbacks.frameProvider,
             frameObservedAtMs = callbacks.frameObservedAtMs,
             evaluator = visualAssistantEvaluator, cloudUrl = callbacks.cloudUrlProvider,
             tts = ttsEngine, appendLog = appendLog,

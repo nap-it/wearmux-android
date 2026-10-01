@@ -23,7 +23,7 @@ import com.example.peciwearables.integration.modules.android.AudioTestEngine
 import com.example.peciwearables.integration.modules.android.PhoneBatteryMonitor
 import com.example.peciwearables.integration.modules.context.PdrPosition
 import com.example.peciwearables.integration.modules.context.SavedRoute
-import com.example.peciwearables.integration.modules.microphone.stt.WhisperSegment
+import com.example.peciwearables.integration.modules.microphone.stt.SpeechSegment
 import com.example.peciwearables.integration.modules.wearos.WatchClient
 import com.example.peciwearables.integration.protocol.GlassesImuSample
 import com.example.peciwearables.integration.protocol.ImuSample
@@ -96,9 +96,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     val glassesWifiConnected: StateFlow<Boolean?> = WearableService.glassesWifiConnected
     val glassesWifiSecure: StateFlow<Boolean?> = WearableService.glassesWifiSecure
     val recordedAudios: StateFlow<List<RecordedAudio>> = WearableService.recordedAudios
-    val whisperConnected: StateFlow<Boolean> = WearableService.whisperConnected
-    val whisperTranscription: StateFlow<List<WhisperSegment>> = WearableService.whisperTranscription
-    val lastWhisperText: StateFlow<String> = WearableService.lastWhisperText
+    val kwsConnected: StateFlow<Boolean> = WearableService.kwsConnected
+    val speechSegments: StateFlow<List<SpeechSegment>> = WearableService.speechSegments
+    val lastRecognizedText: StateFlow<String> = WearableService.lastRecognizedText
     val latestImuSamples: StateFlow<List<ImuSample>> = WearableService.latestImuSamples
     val latestGlassesImu: StateFlow<GlassesImuSample?> = WearableService.latestGlassesImu
     val glassesImuStream: SharedFlow<GlassesImuSample> = WearableService.glassesImuStream
@@ -514,13 +514,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             putExtra(WearableServiceActions.EXTRA_IMU_STREAMING_ENABLED, enabled)
         }
 
-    fun whisperConnect(host: String, port: Int) =
-        sendAction(WearableServiceActions.ACTION_WHISPER_CONNECT) {
-            putExtra(WearableServiceActions.EXTRA_WHISPER_HOST, host)
-            putExtra(WearableServiceActions.EXTRA_WHISPER_PORT, port)
+    fun connectKws(host: String) =
+        sendAction(WearableServiceActions.ACTION_KWS_CONNECT) {
+            putExtra(WearableServiceActions.EXTRA_KWS_HOST, host)
         }
 
-    fun whisperDisconnect() = sendAction(WearableServiceActions.ACTION_WHISPER_DISCONNECT)
+    fun disconnectKws() = sendAction(WearableServiceActions.ACTION_KWS_DISCONNECT)
 
     fun applyMicProfile(sampleRateHz: Int, bitDepth: Int) =
         sendAction(WearableServiceActions.ACTION_APPLY_GLASSES_MICROPHONE_PROFILE) {

@@ -12,7 +12,7 @@ For an overview, setup instructions, citation, and contacts, see the [project RE
 .
 ├── app/                    # Android smartphone hub application
 │   └── src/
-│       ├── main/           # Kotlin/Compose app, integration layer, native whisper.cpp
+│       ├── main/           # Kotlin/Compose app and integration layer
 │       ├── test/           # JVM unit tests
 │       └── androidTest/    # Android instrumentation tests
 ├── wear/                   # Wear OS companion application
@@ -33,7 +33,7 @@ integration/
 │   └── devices/  omi, brilliantsole, esp32, galaxywatch
 ├── modules/      Modality processing
 │   ├── camera/       JPEG assembly, stream metrics, phone and glasses frames
-│   ├── microphone/   PCM pipeline, Opus decoding, WAV capture, KWS/STT sessions
+│   ├── microphone/   PCM pipeline, Opus decoding, WAV capture, and KWS sessions
 │   ├── sensors/      IMU fusion, sample-rate policy
 │   ├── context/      GPS, pedestrian dead reckoning, route recording
 │   ├── android/      Phone camera, microphone, sensors, audio output
@@ -106,7 +106,7 @@ If no key is supplied the generated string is empty and the trajectory view stay
 
 ### Server address
 
-The compiled default is `http://172.20.10.2:8080`, defined in `integration/CloudConfig.kt`, with the keyword spotter on port 9091 and the streaming transcriber on 9090. You do not need to rebuild to change it: open **Settings** in the app and set the unified server URL. The value is stored in shared preferences and reused on the next start.
+The compiled default is `http://172.20.10.2:8080`, defined in `integration/CloudConfig.kt`, with the Sherpa keyword spotter on port 9091. You do not need to rebuild to change it: open **Settings** in the app and set the unified server URL. The value is stored in shared preferences and reused on the next start.
 
 ### Wearable Wi-Fi credentials
 
@@ -116,9 +116,9 @@ The glasses join the same network as the phone. The Wi-Fi dialog on the glasses 
 
 `app/build.gradle.kts` copies the models from `models/` into `app/src/main/assets` before every build. The phone classifier becomes `peci_model.tflite` and the wristband model becomes `trained.tflite`. YAMNet, used for ambient sound classification, is optional and can be fetched with `scripts/download_yamnet.sh`; without it that path falls back to an RMS heuristic.
 
-### Native transcription
+### Audio commands and recordings
 
-If `app/src/main/cpp/whisper.cpp/src/whisper.cpp` is present the build compiles the native library and on-device transcription becomes available. If the directory is absent the build skips CMake entirely and the app still compiles.
+The Android hub captures microphone audio and exposes it to configured remote services. Voice commands use the Sherpa keyword-spotting service; recognized keyword events are forwarded to the WearMux server at `/inputs/audio_stt` over HTTP or optional MQTT. Local microphone recordings can also be saved for later use by external tools. Spoken feedback uses Android's `TextToSpeech` engine.
 
 ## Build
 
@@ -253,11 +253,10 @@ The hub expects the WearMux server on the address configured in Settings:
 | Object detection | `POST {base}/detect` |
 | Depth estimation | `POST {base}/depth` |
 | Scene description | `POST {base}/inputs/visual_assistant` |
-| Keyword and transcription events | `POST {base}/inputs/audio_stt` |
+| Keyword events | `POST {base}/inputs/audio_stt` |
 | Head pose | `POST {base}/inputs/glasses_pose` |
 | Telemetry and returned decisions | `POST {base}/telemetry` |
 | Keyword spotting stream | `ws://{host}:9091` |
-| Streaming transcription | `ws://{host}:9090` |
 
 Every request carries `hub_timestamp`, stamped when the observation left acquisition rather than when the request was built. The server never replaces it; that value is what lets the fusion engine correlate motion, vision and speech coming from different devices.
 
@@ -281,7 +280,7 @@ One topic per modality, named after the equivalent HTTP route:
 | Topic | Payload |
 | --- | --- |
 | `<prefix>/telemetry` | Position, motion state, device state, zones |
-| `<prefix>/inputs/audio_stt` | Keyword and transcription events |
+| `<prefix>/inputs/audio_stt` | Keyword events |
 | `<prefix>/inputs/glasses_pose` | Head orientation |
 
 The payload published on a topic is byte-for-byte the JSON body sent to the matching HTTP route, `hub_timestamp` included. Requests that need an answer, such as object detection and depth estimation, stay on HTTP; MQTT carries only the one-way observation flow.
@@ -324,4 +323,4 @@ The JVM suite covers the protocol parsers, the camera and audio pipelines, the a
 
 **The watch does not appear.** Both apps must be installed and the watch paired to the same phone. The companion is a separate APK; installing the phone app alone is not enough.
 
-**Build fails on the native library.** Check the CMake/NDK configuration first. To build without optional on-device transcription, omit the `app/src/main/cpp/whisper.cpp` source directory; the Gradle script detects its absence and skips CMake.
+**Audio commands do nothing.** Check the server URL in Settings, confirm that the Sherpa keyword-spotting service is reachable on port 9091, and verify the server's `/inputs/audio_stt` endpoint. The Android app forwards audio and keyword results; external tools can consume saved recordings or server-side data.
