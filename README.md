@@ -17,8 +17,6 @@ This repository contains the Android hub and its Wear OS companion, developed fo
 
 If you use WearMux in your research, please consider citing *WearMux: Real-Time Multimodal Sensing and Feedback across Heterogeneous Wearables*.
 
-The entry below is based on the WPMC 2026 manuscript. Final proceedings metadata and a DOI have not yet been verified.
-
 ```bibtex
 @unpublished{Tavares2026WearMux,
     author = {Tavares, Guilherme and Soares, Rafael and Clérigo, André and Silva, Gonçalo and Silva, Gabriel and Cruz, Tomás and Abrunhosa, João and Laredo, Pedro and Rito, Pedro and Sargento, Susana},
@@ -133,5 +131,3 @@ Questions and bug reports: [andreclerigo@ua.pt](mailto:andreclerigo@ua.pt) / [ga
 ## License
 
 WearMux Android is licensed under the **GNU General Public License v3.0 (GPL-3.0)**. See [LICENSE](LICENSE) for the full terms.
-
-Bundled third-party components retain their own license notices, including the MIT-licensed [whisper.cpp](app/src/main/cpp/whisper.cpp/LICENSE).

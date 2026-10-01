@@ -97,8 +97,8 @@ fun CameraScreen(viewModel: AppViewModel) {
     val depthVisualizationMode by depthManager.visualizationMode.collectAsState()
     val metersPerUnit by depthManager.metersPerUnit.collectAsState()
     val latestCameraBitmap by viewModel.latestCameraBitmap.collectAsStateWithLifecycle()
-    val whisperConnected by viewModel.whisperConnected.collectAsStateWithLifecycle()
-    val lastWhisperText by viewModel.lastWhisperText.collectAsStateWithLifecycle()
+    val kwsConnected by viewModel.kwsConnected.collectAsStateWithLifecycle()
+    val lastRecognizedText by viewModel.lastRecognizedText.collectAsStateWithLifecycle()
     val esp32State by viewModel.esp32State.collectAsStateWithLifecycle()
     val glassesStateForStream by viewModel.glassesState.collectAsStateWithLifecycle()
     val isStreaming by viewModel.isStreaming.collectAsStateWithLifecycle()
@@ -510,14 +510,14 @@ fun CameraScreen(viewModel: AppViewModel) {
             }
         }
 
-        if (whisperConnected && lastWhisperText.isNotEmpty()) {
+        if (kwsConnected && lastRecognizedText.isNotEmpty()) {
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(bottom = 16.dp, start = 12.dp, end = 12.dp)
             ) {
                 Text(
-                    text = "🎙 $lastWhisperText",
+                    text = "🎙 $lastRecognizedText",
                     color = Color.White,
                     fontSize = 13.sp,
                     maxLines = 2,

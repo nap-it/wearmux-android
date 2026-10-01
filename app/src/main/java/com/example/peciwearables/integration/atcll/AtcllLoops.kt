@@ -26,7 +26,7 @@ class AtcllOutgoingLoops(
     private val phoneGps: () -> PhoneGpsLocation?,
     private val zones: () -> List<CrossingZone>,
     private val pedestrianDecision: () -> PedestrianSafetyDecision,
-    private val lastWhisperText: StateFlow<String>,
+    private val lastRecognizedText: StateFlow<String>,
     private val appendLog: (String) -> Unit,
     private val appendSafetyLog: (String) -> Unit,
 ) {
@@ -53,7 +53,7 @@ class AtcllOutgoingLoops(
             }
         }
         scope.launch {
-            lastWhisperText.collect { transcript ->
+            lastRecognizedText.collect { transcript ->
                 if (!uc2Enabled()) return@collect
                 if (!VoiceCommandMatcher.matchesStop(transcript)) return@collect
                 val gps = phoneGps() ?: return@collect

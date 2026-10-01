@@ -69,15 +69,15 @@ import com.example.peciwearables.integration.WearableServiceActions.ACTION_WATCH
 import com.example.peciwearables.integration.WearableServiceActions.ACTION_WATCH_START_IMU
 import com.example.peciwearables.integration.WearableServiceActions.ACTION_WATCH_STOP_IMU
 import com.example.peciwearables.integration.WearableServiceActions.ACTION_WATCH_VIBRATE
-import com.example.peciwearables.integration.WearableServiceActions.ACTION_WHISPER_CONNECT
-import com.example.peciwearables.integration.WearableServiceActions.ACTION_WHISPER_DISCONNECT
+import com.example.peciwearables.integration.WearableServiceActions.ACTION_KWS_CONNECT
+import com.example.peciwearables.integration.WearableServiceActions.ACTION_KWS_DISCONNECT
 import com.example.peciwearables.integration.WearableServiceActions.EXTRA_ROUTE_ID
 import com.example.peciwearables.integration.WearableServiceActions.EXTRA_ROUTE_NAME
 import com.example.peciwearables.integration.WearableServiceActions.EXTRA_TONE_DURATION_MS
 import com.example.peciwearables.integration.WearableServiceActions.EXTRA_TONE_FREQ_HZ
 import com.example.peciwearables.integration.WearableServiceActions.EXTRA_VIBRATE_PATTERN
 import com.example.peciwearables.integration.WearableServiceActions.EXTRA_WATCH_RATE_HZ
-import com.example.peciwearables.integration.WearableServiceActions.EXTRA_WHISPER_HOST
+import com.example.peciwearables.integration.WearableServiceActions.EXTRA_KWS_HOST
 import com.example.peciwearables.integration.hub.WearableKind
 import com.example.peciwearables.integration.modules.android.AudioTestEngine
 
@@ -102,9 +102,9 @@ internal fun WearableService.routeIntent(intent: Intent?) {
         ACTION_STOP_MICROPHONE -> handleStopMicrophone()
         ACTION_START_AUDIO_RECORDING -> handleStartAudioRecording()
         ACTION_STOP_AUDIO_RECORDING -> handleStopAudioRecording()
-        ACTION_WHISPER_CONNECT -> intent.getStringExtra(EXTRA_WHISPER_HOST)?.trim()?.takeIf { it.isNotBlank() }
+        ACTION_KWS_CONNECT -> intent.getStringExtra(EXTRA_KWS_HOST)?.trim()?.takeIf { it.isNotBlank() }
             ?.let(::connectKwsInternal) ?: WearableService.appendLog("KWS: missing host")
-        ACTION_WHISPER_DISCONNECT -> { disconnectKwsInternal(); WearableService.appendLog("KWS: disconnected") }
+        ACTION_KWS_DISCONNECT -> { disconnectKwsInternal(); WearableService.appendLog("KWS: disconnected") }
         ACTION_TRIGGER_IMU_ML_BENCHMARK -> requestImuMlBenchmarkSample()
         ACTION_SET_ML_PROCESSING_LOCATION -> handleSetMlProcessingLocation(intent)
         ACTION_SET_ML_SERVER_URL -> handleSetMlServerUrl(intent)

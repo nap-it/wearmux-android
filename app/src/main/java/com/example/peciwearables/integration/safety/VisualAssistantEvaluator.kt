@@ -76,7 +76,6 @@ class VisualAssistantEvaluator(
         return when {
             trimmed.endsWith("/detect") -> trimmed.removeSuffix("/detect")
             trimmed.endsWith("/depth") -> trimmed.removeSuffix("/depth")
-            trimmed.endsWith("/transcribe") -> trimmed.removeSuffix("/transcribe")
             else -> trimmed
         }
     }

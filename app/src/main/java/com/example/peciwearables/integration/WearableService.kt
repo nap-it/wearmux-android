@@ -47,7 +47,7 @@ import com.example.peciwearables.integration.modules.microphone.AmbientSoundClas
 import com.example.peciwearables.integration.modules.microphone.AudioPipeline
 import com.example.peciwearables.integration.modules.microphone.GlassesMicrophoneManager
 import com.example.peciwearables.integration.modules.microphone.GlassesMicrophoneProfile
-import com.example.peciwearables.integration.modules.microphone.stt.WhisperSegment
+import com.example.peciwearables.integration.modules.microphone.stt.SpeechSegment
 import com.example.peciwearables.integration.modules.wearos.WatchClient
 import com.example.peciwearables.integration.observation.Timestamper
 import com.example.peciwearables.integration.protocol.GlassesImuSample
@@ -232,9 +232,9 @@ class WearableService : Service(), LifecycleOwner {
         internal val _glassesMicPlaybackSupported = MutableStateFlow(true); val glassesMicPlaybackSupported: StateFlow<Boolean> = _glassesMicPlaybackSupported
         internal val _audioRecordingActive = MutableStateFlow(false); val audioRecordingActive: StateFlow<Boolean> = _audioRecordingActive
         internal val _recordedAudios = MutableStateFlow<List<RecordedAudio>>(emptyList()); val recordedAudios: StateFlow<List<RecordedAudio>> = _recordedAudios
-        internal val _whisperConnected = MutableStateFlow(false); val whisperConnected: StateFlow<Boolean> = _whisperConnected
-        internal val _whisperTranscription = MutableStateFlow<List<WhisperSegment>>(emptyList()); val whisperTranscription: StateFlow<List<WhisperSegment>> = _whisperTranscription
-        internal val _lastWhisperText = MutableStateFlow(""); val lastWhisperText: StateFlow<String> = _lastWhisperText
+        internal val _kwsConnected = MutableStateFlow(false); val kwsConnected: StateFlow<Boolean> = _kwsConnected
+        internal val _speechSegments = MutableStateFlow<List<SpeechSegment>>(emptyList()); val speechSegments: StateFlow<List<SpeechSegment>> = _speechSegments
+        internal val _lastRecognizedText = MutableStateFlow(""); val lastRecognizedText: StateFlow<String> = _lastRecognizedText
         internal val _latestPhotoLatency = MutableStateFlow<LatencySample?>(null); val latestPhotoLatency: StateFlow<LatencySample?> = _latestPhotoLatency
         internal val _latestMicrophoneLatency = MutableStateFlow<LatencySample?>(null); val latestMicrophoneLatency: StateFlow<LatencySample?> = _latestMicrophoneLatency
         internal val _phoneGps = MutableStateFlow<PhoneGpsLocation?>(null); val phoneGps: StateFlow<PhoneGpsLocation?> = _phoneGps
@@ -414,10 +414,10 @@ class WearableService : Service(), LifecycleOwner {
     internal val kwsCoordinator by lazy {
         com.example.peciwearables.integration.modules.microphone.stt.SherpaKwsCoordinator(
             context = this, scope = serviceScope,
-            onConnectedChanged = { _whisperConnected.value = it }, onLog = ::appendLog,
+            onConnectedChanged = { _kwsConnected.value = it }, onLog = ::appendLog,
             onKeyword = { keyword, observedAtMs ->
-                _lastWhisperText.value = keyword
-                _whisperTranscription.value = listOf(WhisperSegment(0f, 0f, keyword, completed = true))
+                _lastRecognizedText.value = keyword
+                _speechSegments.value = listOf(SpeechSegment(0f, 0f, keyword, completed = true))
                 cloudKwsForwarder.submit(keyword, observedAtMs)
             },
             glassesMicStreaming = { _glassesMicStreaming.value },
@@ -711,7 +711,7 @@ class WearableService : Service(), LifecycleOwner {
             visualAssistantEvaluator = visualAssistantEvaluator, ttsEngine = ttsEngine,
             flows = com.example.peciwearables.integration.safety.SafetyLoopsBuilder.Flows(
                 _glassesState, _wristbandState, _watchState, _phoneGps,
-                _pedestrianDecision, _lastWhisperText, _whisperTranscription,
+                _pedestrianDecision, _lastRecognizedText, _speechSegments,
                 _vehicleApproachDecision, _cyclistMode,
             ),
             callbacks = com.example.peciwearables.integration.safety.SafetyLoopsBuilder.Callbacks(

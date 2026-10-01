@@ -1,7 +1,7 @@
 package com.example.peciwearables.integration.safety
 
 import com.example.peciwearables.integration.modules.android.TextToSpeechEngine
-import com.example.peciwearables.integration.modules.microphone.stt.WhisperSegment
+import com.example.peciwearables.integration.modules.microphone.stt.SpeechSegment
 
 
 class ConversationTranscriber(
@@ -9,7 +9,7 @@ class ConversationTranscriber(
 ) {
     @Volatile private var lastSpokenHash: Int = 0
 
-    fun onSegments(segments: List<WhisperSegment>) {
+    fun onSegments(segments: List<SpeechSegment>) {
         val latest = segments.lastOrNull { it.completed } ?: return
         val text = latest.text.trim()
         if (text.length < 3) return

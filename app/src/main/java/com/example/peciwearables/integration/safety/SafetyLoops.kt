@@ -7,7 +7,7 @@ import com.example.peciwearables.integration.depth.DepthManager
 import com.example.peciwearables.integration.inference.InferenceManager
 import com.example.peciwearables.integration.modules.android.TextToSpeechEngine
 import com.example.peciwearables.integration.modules.microphone.AmbientSoundClassifier
-import com.example.peciwearables.integration.modules.microphone.stt.WhisperSegment
+import com.example.peciwearables.integration.modules.microphone.stt.SpeechSegment
 import com.example.peciwearables.integration.modules.wearos.WatchClient
 import com.example.peciwearables.integration.modules.wearos.WatchProtocol
 import java.text.Normalizer
@@ -142,7 +142,7 @@ class Uc43Loop(
 /** UC4.5 — transcrição contínua → TTS. */
 class Uc45Loop(
     private val enabled: () -> Boolean,
-    private val transcription: StateFlow<List<WhisperSegment>>,
+    private val transcription: StateFlow<List<SpeechSegment>>,
     private val transcriber: ConversationTranscriber,
 ) {
     fun start(scope: CoroutineScope) = scope.launch {
@@ -155,7 +155,7 @@ class Uc45Loop(
 
 /** UC4.1 — Assistente Visual on-demand (intent + frame). */
 class Uc41Loop(
-    private val transcription: StateFlow<List<WhisperSegment>>,
+    private val transcription: StateFlow<List<SpeechSegment>>,
     private val frameProvider: () -> Bitmap?,
     private val frameObservedAtMs: () -> Long,
     private val evaluator: VisualAssistantEvaluator,

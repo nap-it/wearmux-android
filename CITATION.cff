@@ -1,0 +1,43 @@
+cff-version: 1.2.0
+message: "If you use WearMux in your research, please cite the manuscript listed below."
+type: software
+title: "WearMux — Android Hub"
+authors:
+  - family-names: "Clérigo"
+    given-names: "André"
+    email: "andreclerigo@ua.pt"
+  - family-names: "Tavares"
+    given-names: "Guilherme"
+    email: "gavftavares@ua.pt"
+  - family-names: "Soares"
+    given-names: "Rafael"
+    email: "rafael.feliciano@ua.pt"
+repository-code: "https://github.com/nap-it/wearmux-android"
+url: "https://github.com/nap-it/wearmux-android"
+license: GPL-3.0-only
+preferred-citation:
+  type: unpublished
+  title: "WearMux: Real-Time Multimodal Sensing and Feedback across Heterogeneous Wearables"
+  authors:
+    - family-names: "Tavares"
+      given-names: "Guilherme"
+    - family-names: "Soares"
+      given-names: "Rafael"
+    - family-names: "Clérigo"
+      given-names: "André"
+    - family-names: "Silva"
+      given-names: "Gonçalo"
+    - family-names: "Silva"
+      given-names: "Gabriel"
+    - family-names: "Cruz"
+      given-names: "Tomás"
+    - family-names: "Abrunhosa"
+      given-names: "João"
+    - family-names: "Laredo"
+      given-names: "Pedro"
+    - family-names: "Rito"
+      given-names: "Pedro"
+    - family-names: "Sargento"
+      given-names: "Susana"
+  year: 2026
+  notes: "WPMC 2026 manuscript. Final proceedings metadata and a DOI have not yet been verified."
