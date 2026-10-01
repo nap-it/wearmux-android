@@ -1,6 +1,6 @@
 # Headless Bluetooth bridge
 
-The existing WearMux Android application can optionally take exclusive control of a Brilliant Labs Frame running custom BrilliantSole/BrilliantWear firmware for `wearmux-headless`. Open **Dev / Lab → Overview**, enter the headless WebSocket URL and shared token, and start the bridge. The URL must end in `/android-ble` and contain no query parameters. Use the Droidspaces Debian address or an explicitly forwarded Android-host port, for example `ws://172.28.178.197:8765/android-ble`.
+The existing WearMux Android application can optionally take exclusive control of a Brilliant Labs Frame running custom BrilliantSole/BrilliantWear firmware for `wearmux-headless`. In the app, open Settings, enable Developer mode, then open **Dev / Lab → Overview**. Enter the headless WebSocket URL and shared token, and start the bridge. The URL must end in `/android-ble` and contain no query parameters. Use the Droidspaces Debian address or an explicitly forwarded Android-host port, for example `ws://172.28.178.197:8765/android-ble`.
 
 The bridge sends an authenticated outbound WebSocket upgrade with `Authorization: Bearer <token>`. The token is required, is never logged, and is kept only in memory by the service. Protocol frames are JSON text up to 64 KiB; characteristic bytes use standard Base64.
 
