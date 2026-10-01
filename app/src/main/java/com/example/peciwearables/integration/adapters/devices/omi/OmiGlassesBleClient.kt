@@ -21,6 +21,7 @@ import android.os.Looper
 import android.os.ParcelUuid
 import android.os.SystemClock
 import android.util.Log
+import com.example.peciwearables.integration.HeadlessBridgeOwnership
 import com.example.peciwearables.integration.CAMERA_QUALITY_FACTOR_MAX
 import com.example.peciwearables.integration.CAMERA_QUALITY_FACTOR_MIN
 import com.example.peciwearables.integration.CAMERA_RESOLUTION_MAX
@@ -403,6 +404,7 @@ class OmiGlassesBleClient(private val context: Context) : OmiGlassesBleClientApi
     // ── Scan ──
 
     fun startScan() {
+        if (HeadlessBridgeOwnership.isActive()) return
         if (isScanning) return
         val manager = context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
         val adapter = manager?.adapter ?: run {
@@ -478,6 +480,7 @@ class OmiGlassesBleClient(private val context: Context) : OmiGlassesBleClientApi
     // ── Connect ──
 
     override fun connectDevice(device: BluetoothDevice) {
+        if (HeadlessBridgeOwnership.isActive()) return
         stopScan()
         Log.d(TAG, "Connecting to device: ${device.name} [${device.address}]")
         connectInternal(device, resetRetryCount = true, source = "manual")
@@ -494,6 +497,7 @@ class OmiGlassesBleClient(private val context: Context) : OmiGlassesBleClientApi
     }
 
     private fun connectInternal(device: BluetoothDevice, resetRetryCount: Boolean, source: String) {
+        if (HeadlessBridgeOwnership.isActive()) return
         if (resetRetryCount) connectRetryCount = 0
         manualDisconnectRequested = false
         prepareFreshConnectionState()
