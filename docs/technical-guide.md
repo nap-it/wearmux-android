@@ -154,7 +154,16 @@ GitHub Actions and GitLab CI build the phone and Wear OS debug APKs for all bran
 
 APK filenames include the branch and the first seven characters of the commit, for example `wearmux-phone-debug-main-a1b2c3d.apk`. The app's installed name and package ID stay the same. GitHub stores separate phone and watch artifact downloads; GitLab stores both APKs and `SHA256SUMS` in the `debug-apks` job's artifacts. Artifacts are retained for 30 days. The Git mirror copies source and tags; each platform builds and stores its own APKs.
 
-GitLab requires a Linux runner with the Docker or Kubernetes executor, able to run untagged jobs and download dependencies from Docker Hub, Google, and Gradle/JetBrains. Enable an available runner under **Settings → CI/CD → Runners**. Debug builds need no signing secrets. `NAVISENS_DEVELOPER_KEY` can optionally be added under **Settings → CI/CD → Variables** to enable trajectory features in GitLab builds. GitHub secrets are not copied to GitLab by mirroring.
+GitLab supports Linux x86_64 shell, Docker, and Kubernetes runners. The setup script installs checksum-verified JetBrains JDK 21 and Android SDK 36 under the job workspace and caches them; no root access, `sudo`, or package installation is required during the job. Shell runners ignore the YAML `image` setting and use their host's Bash, Git, `tar`, `sha256sum`, `sha512sum`, and either `curl` or `wget`. The SDK archive is extracted with the downloaded JDK, so system Java and `unzip` are not required. The runner needs network access to Google, JetBrains, and Gradle/Maven dependency repositories. Docker/Kubernetes runners also need access to the configured container image.
+
+Enable an available runner that accepts untagged jobs under **Settings → CI/CD → Runners**. If any basic utility is missing on a Debian/Ubuntu shell host, an administrator can install it once on that host:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y bash git curl tar coreutils ca-certificates
+```
+
+These commands are host setup, not pipeline steps. Debug builds need no signing secrets. `NAVISENS_DEVELOPER_KEY` can optionally be added under **Settings → CI/CD → Variables** to enable trajectory features in GitLab builds. GitHub secrets are not copied to GitLab by mirroring.
 
 The GitHub **Release APKs** workflow builds signed APKs, runs JVM tests, verifies matching phone/watch signatures and versions, and creates a draft research prerelease. Configure these GitHub repository secrets once:
 

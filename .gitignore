@@ -2,6 +2,7 @@
 .gradle/
 .kotlin/
 .android-sdk/
+.ci-tools/
 build/
 !gradle/wrapper/gradle-wrapper.jar
 

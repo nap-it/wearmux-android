@@ -1,4 +1,6 @@
-image: eclipse-temurin:21-jdk-jammy
+# Container executors use this image's Git and download utilities. Shell
+# executors use the host utilities; both install their JDK/SDK in the workspace.
+image: buildpack-deps:jammy-scm
 
 stages:
   - build
@@ -8,7 +10,6 @@ variables:
   ANDROID_SDK_ROOT: "$CI_PROJECT_DIR/.android-sdk"
   GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle"
   GIT_DEPTH: "0"
-  DEBIAN_FRONTEND: noninteractive
 
 cache:
   key:
@@ -17,6 +18,7 @@ cache:
       - gradle/libs.versions.toml
   paths:
     - .android-sdk/
+    - .ci-tools/jdk21/
     - .gradle/caches/
     - .gradle/jdks/
     - .gradle/wrapper/
@@ -50,8 +52,6 @@ debug-apks:
       if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH'
     - when: never
   before_script:
-    - apt-get update -qq
-    - apt-get install -y -qq --no-install-recommends curl git unzip ca-certificates
     - |
       # Skip docs inside source directories before downloading the SDK. Rules
       # cannot express GitHub's negative path patterns on every GitLab version.
@@ -79,23 +79,7 @@ debug-apks:
           echo 'Previous commit unavailable; building APKs.'
         fi
       fi
-    - mkdir -p "$ANDROID_SDK_ROOT/cmdline-tools"
-    - |
-      if [ ! -x "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" ]; then
-        curl --fail --location --silent --show-error \
-          https://dl.google.com/android/repository/commandlinetools-linux-15859902_latest.zip \
-          --output /tmp/android-commandline-tools.zip
-        echo '4e4c464f145a7512b57d088ac6c278c03c9eea610886b35a5e0804e74eedf583  /tmp/android-commandline-tools.zip' \
-          | sha256sum --check --status
-        rm -rf "$ANDROID_SDK_ROOT/cmdline-tools/latest" /tmp/android-commandline-tools
-        mkdir /tmp/android-commandline-tools
-        unzip -q /tmp/android-commandline-tools.zip -d /tmp/android-commandline-tools
-        mv /tmp/android-commandline-tools/cmdline-tools "$ANDROID_SDK_ROOT/cmdline-tools/latest"
-      fi
-    - '"$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses < <(yes) >/dev/null'
-    - >-
-      "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" platform-tools
-      'platforms;android-36' 'build-tools;36.0.0'
+    - source scripts/ci/setup-android.sh
   script:
     - ./gradlew --no-daemon --stacktrace :app:assembleDebug :wear:assembleDebug
     - bash scripts/ci/package-debug-apks.sh "$CI_COMMIT_REF_NAME" "$CI_COMMIT_SHA"
