@@ -134,7 +134,7 @@ private fun HeadlessBridgePanel() {
     var useAuthentication by remember { mutableStateOf(false) }
     var filter by remember { mutableStateOf("") }
     val bridgeActive by HeadlessBridgeOwnership.state.collectAsStateWithLifecycle()
-    val canStart = BridgeConfiguration.valid(endpoint.trim(), if (useAuthentication) token else "")
+    val canStart = (!useAuthentication || token.isNotEmpty()) && BridgeConfiguration.valid(endpoint.trim(), if (useAuthentication) token else "")
     Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
         Text("Headless Bluetooth bridge", color = Constants.primaryTextColor, fontSize = 16.sp)
         Text("For Brilliant Labs Frame with custom BrilliantSole/BrilliantWear firmware. Takes exclusive BLE ownership while active; explicit stop restores the ordinary glasses client.", color = Constants.secondaryTextColor, fontSize = 12.sp)
