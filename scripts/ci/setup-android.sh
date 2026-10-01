@@ -8,7 +8,7 @@ if [[ "$(uname -s)" != Linux || "$(uname -m)" != x86_64 ]]; then
   return 1
 fi
 
-for tool in git tar sha256sum sha512sum; do
+for tool in git tar sha256sum getconf; do
   if ! command -v "$tool" >/dev/null 2>&1; then
     echo "Missing runner utility: $tool. See the CI setup in docs/technical-guide.md." >&2
     return 1
@@ -16,6 +16,19 @@ for tool in git tar sha256sum sha512sum; do
 done
 if ! command -v curl >/dev/null 2>&1 && ! command -v wget >/dev/null 2>&1; then
   echo 'The runner needs curl or wget to download build tools.' >&2
+  return 1
+fi
+
+# Android Build Tools 36's native libraries require glibc 2.17. Check the
+# runner before downloading anything, rather than failing inside a JVM loader.
+libc_version=$(getconf GNU_LIBC_VERSION)
+echo "Runner C library: $libc_version"
+if [[ ! "$libc_version" =~ ^glibc\ ([0-9]+)\.([0-9]+)$ ]]; then
+  echo 'Android CI requires a glibc-based Linux runner (glibc 2.17 or newer).' >&2
+  return 1
+fi
+if (( BASH_REMATCH[1] < 2 || (BASH_REMATCH[1] == 2 && BASH_REMATCH[2] < 17) )); then
+  echo 'Android Build Tools 36 require glibc 2.17 or newer. Use a newer runner or a container executor.' >&2
   return 1
 fi
 
@@ -33,26 +46,27 @@ download_ci_tool() {
   fi
 }
 
-# Match the JetBrains 21 daemon configured in gradle-daemon-jvm.properties.
-# Downloads and extraction stay inside this job's writable workspace.
-if [[ ! -x "$ci_tools/jdk21/bin/java" ]]; then
+# Temurin 21 supports older glibc hosts than the JetBrains runtime. The Gradle
+# daemon requires Java 21 without a vendor restriction. Use a separate cache
+# directory so an incompatible JetBrains JDK from an earlier job is not reused.
+if [[ ! -x "$ci_tools/temurin21/bin/java" ]]; then
   (
     download_dir=$(mktemp -d "$ci_tools/jdk-download.XXXXXX")
     trap 'rm -rf "$download_dir"' EXIT
     archive="$download_dir/jdk.tar.gz"
     download_ci_tool \
-      https://cache-redirector.jetbrains.com/intellij-jbr/jbrsdk_jcef-21.0.10-linux-x64-b1163.108.tar.gz \
+      'https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.12.1%2B1/OpenJDK21U-jdk_x64_linux_hotspot_21.0.12.1_1.tar.gz' \
       "$archive"
     printf '%s  %s\n' \
-      a4d3a06b326e25a055a6a9493aae42f52ed7b88b958b8cd59738b07daeb9e481e24e5f19b420e67a8b04865540ca55c5c6d4a7114b22b305f916d7b20e473487 \
-      "$archive" | sha512sum --check --status
+      ce79869e1307ed8ee1e2baa86a412b1eb5b75d10a01006d788a6f968bcfaee94 \
+      "$archive" | sha256sum --check --status
     mkdir "$download_dir/jdk"
     tar -xzf "$archive" --strip-components=1 -C "$download_dir/jdk"
-    rm -rf "$ci_tools/jdk21"
-    mv "$download_dir/jdk" "$ci_tools/jdk21"
+    rm -rf "$ci_tools/temurin21"
+    mv "$download_dir/jdk" "$ci_tools/temurin21"
   )
 fi
-export JAVA_HOME="$ci_tools/jdk21"
+export JAVA_HOME="$ci_tools/temurin21"
 export PATH="$JAVA_HOME/bin:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
 "$JAVA_HOME/bin/java" -version
 
