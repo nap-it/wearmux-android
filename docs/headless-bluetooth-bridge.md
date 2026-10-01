@@ -8,6 +8,6 @@ Android owns raw GATT and headless owns the BrilliantSole protocol. The bridge s
 
 Starting the bridge explicitly disconnects and gates the existing glasses client so the two clients cannot compete for GATT. Stopping the bridge explicitly releases the gate and asks the ordinary glasses service to reconnect. Socket loss tears down GATT and queued writes without replay.
 
-The Android app requires nearby-device, notification, and network permissions. Remote deployments should use `wss://`; cleartext `ws://` is retained for the local Droidspaces deployment.
+The Android app requires nearby-device, notification, and network permissions. The bridge does not derive physical location from BLE scans; Android may therefore grant `BLUETOOTH_SCAN` with `neverForLocation`. Fine/coarse location remains available for the app's separate GPS features and is optional for this bridge. Remote deployments should use `wss://`; cleartext `ws://` is retained for the local Droidspaces deployment.
 
 The complete wire contract is in [headless-bluetooth-protocol.md](headless-bluetooth-protocol.md).

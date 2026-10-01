@@ -119,7 +119,9 @@ public final class HeadlessBleBridgeService extends Service {
         @Override public void onScanResult(int type, ScanResult result) {
             main.post(() -> {
                 if (destroyed || !socketReady || gatt != null || !discovery) return;
-                BluetoothDevice d = result.getDevice(); String name = d.getName();
+                BluetoothDevice d = result.getDevice();
+                String name = result.getScanRecord() == null ? null : result.getScanRecord().getDeviceName();
+                if (name == null) name = d.getName();
                 if (filter == null || filter.trim().isEmpty() || d.getAddress().equalsIgnoreCase(filter.trim()) || (name != null && name.equalsIgnoreCase(filter.trim()))) {
                     stopScan(); connect(d);
                 }
