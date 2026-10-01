@@ -1,6 +1,7 @@
 package com.example.peciwearables.wear
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
@@ -49,6 +50,8 @@ import kotlinx.coroutines.withTimeoutOrNull
 
 class MainActivity : ComponentActivity() {
 
+    // This Compose activity handles permissions directly through ComponentActivity.
+    @SuppressLint("InvalidFragmentVersionForActivityResult")
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { /* utilizador volta a tocar se negar */ }
