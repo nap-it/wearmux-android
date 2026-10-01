@@ -107,14 +107,16 @@ A Navisens developer key is optional and enables the trajectory view. Model setu
 1. Launch the phone app and grant the permissions requested for the features you use, including nearby devices, location, camera, microphone, and notifications.
 2. Select **Search Wearables** on the home screen, scan for compatible devices, and connect a wearable. For the watch, install the companion and pair it with the phone first.
 3. Open the connected device's details or status view to inspect streams and configure sensing. Omi glasses connect over BLE first and can switch camera streaming to Wi-Fi/UDP.
-4. Use **Settings** to choose supported processing options, configure a remote server if needed, and set alert preferences.
+4. Use **Settings** to choose supported processing options and set alert preferences. Glasses object detection defaults to the bundled local model. For remote services, enable **Developer mode** in Settings and configure your server URL; the compiled server address belongs to the development setup.
 5. Monitor incoming data and feedback, or record a route for an experiment.
 
 ## Documentation and Demonstration
 
 Download versioned phone and Wear OS APKs from [GitHub Releases](https://github.com/nap-it/wearmux-android/releases), when published.
 
-For development builds, the [Build APKs workflow](.github/workflows/build-apks.yml) builds debug APKs when app code, models, or build configuration changes. Download `wearmux-phone-debug` and `wearmux-wear-debug` from the completed run's **Artifacts** section in the **Actions** tab.
+For development builds, the [GitHub Build APKs workflow](.github/workflows/build-apks.yml) and [GitLab pipeline](.gitlab-ci.yml) build debug APKs on all branches when app code, models, or build configuration changes. Documentation-only pushes skip the build. Both platforms include the branch and commit in APK filenames, for example `wearmux-phone-debug-main-a1b2c3d.apk` and `wearmux-wear-debug-main-a1b2c3d.apk`. Download them from a completed GitHub run's **Artifacts** section or the GitLab job's artifacts.
+
+Version tags build signed APKs on GitHub and prepare a draft research prerelease with checksums. The draft can be tested and reviewed before publication. See the [build and release instructions](docs/technical-guide.md#continuous-integration-and-releases).
 
 The [technical guide](docs/technical-guide.md) covers configuration, internal architecture, command-line control, server endpoints, MQTT, benchmarks, tests, and troubleshooting.
 

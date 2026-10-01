@@ -1,6 +1,7 @@
 # Gradle
 .gradle/
 .kotlin/
+.android-sdk/
 build/
 !gradle/wrapper/gradle-wrapper.jar
 
@@ -30,6 +31,7 @@ Thumbs.db
 # Saidas locais de benchmark
 *.log
 benchmarks/
+apk-artifacts/
 
 # Brainstorming visual-companion scratch files
 .superpowers/

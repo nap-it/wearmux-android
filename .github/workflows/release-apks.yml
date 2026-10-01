@@ -10,6 +10,11 @@ on:
         description: 'Existing version tag to build (for example, v1.0.0)'
         required: true
         type: string
+      prerelease:
+        description: 'Mark the draft as a research prerelease'
+        required: true
+        default: true
+        type: boolean
 
 permissions:
   contents: read
@@ -31,6 +36,7 @@ jobs:
       contents: write
     env:
       RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+      RELEASE_PRERELEASE: ${{ github.event_name == 'push' || inputs.prerelease }}
 
     steps:
       - name: Validate tag format
@@ -145,19 +151,66 @@ jobs:
               exit 1
             fi
             gh release upload "$RELEASE_TAG" release-artifacts/* --clobber
+            gh release edit "$RELEASE_TAG" --prerelease="$RELEASE_PRERELEASE"
           else
             cat > "$RUNNER_TEMP/release-notes.md" <<'NOTES'
-          Signed WearMux phone and Wear OS APKs, plus SHA-256 checksums.
+          Research release of the WearMux Android hub and Wear OS companion,
+          accompanying the manuscript “WearMux: Real-Time Multimodal Sensing and
+          Feedback across Heterogeneous Wearables.”
 
-          - Phone: Android 14+ (API 34), arm64-v8a. Download and install the phone APK.
-          - Watch: Wear OS API 34+, compatible with armeabi-v7a. Pair it to the phone, then install the watch APK with ADB.
-          - The optional Navisens trajectory view requires a developer key configured when building.
+          WearMux combines wearable and smartphone sensing with local or remote
+          processing and audio, haptic, and watch feedback.
 
-          Install both APKs from this release. Switching from a debug build requires uninstalling it first because the signing certificate differs.
+          ### Included capabilities
+
+          - Integration paths for Omi AI glasses, Brilliant Wear / Brilliant Sole
+            wristbands and insoles, ESP32-S3 camera devices, and Wear OS watches.
+          - Camera, microphone, motion, heart-rate, and location acquisition,
+            depending on the connected device.
+          - Selected local inference and optional remote processing.
+          - Live monitoring, recording, wearable feedback, and HTTP, WebSocket,
+            and optional MQTT integration.
+
+          ### Installation and configuration
+
+          - Phone: Android 14+ (API 34), arm64-v8a.
+          - Watch: API 34+, compatible with armeabi-v7a. Install the companion APK
+            on your paired watch with ADB.
+          - Wearable capabilities require compatible hardware and firmware.
+          - Glasses object detection defaults to local processing. For remote
+            services, enable Developer mode in Settings and set your server URL;
+            the compiled default address belongs to the development setup.
+          - Remote voice commands require the Sherpa keyword-spotting service.
+          - The optional Navisens trajectory view requires a valid developer key
+            configured when building.
+
+          Download the phone APK and, if needed, the watch APK from this release.
+          SHA256SUMS provides checksums for both downloads.
+
+          Existing debug installations may require uninstalling before installing
+          these signed APKs, which removes their local app data.
+
+          ### Research scope
+
+          This release is intended for research and experimentation. Device
+          compatibility and performance depend on hardware, firmware, and network
+          conditions. WearMux Headless is maintained separately.
+
+          Documentation: https://github.com/nap-it/wearmux-android#readme
+          Demonstration: https://youtu.be/r0GW5SRqzHw
+          License: GPL-3.0.
           NOTES
+            title="WearMux Android $RELEASE_TAG — Research release"
+            if [[ "$RELEASE_TAG" == 'v1.0.0' ]]; then
+              title="WearMux Android $RELEASE_TAG — Initial research release"
+            fi
+            prerelease_args=()
+            if [[ "$RELEASE_PRERELEASE" == 'true' ]]; then
+              prerelease_args+=(--prerelease)
+            fi
             gh release create "$RELEASE_TAG" release-artifacts/* \
-              --verify-tag --draft --title "WearMux $RELEASE_TAG" \
-              --notes-file "$RUNNER_TEMP/release-notes.md" --generate-notes
+              --verify-tag --draft "${prerelease_args[@]}" --title "$title" \
+              --notes-file "$RUNNER_TEMP/release-notes.md"
           fi
 
       - name: Remove temporary keystore

@@ -19,6 +19,8 @@ on:
       - '.gitmodules'
       - '.github/workflows/build-apks.yml'
       - '.github/workflows/release-apks.yml'
+      - '.gitlab-ci.yml'
+      - 'scripts/ci/**'
       - '!**/*.md'
       - '!**/*.pdf'
       - '!**/LICENSE*'
@@ -61,11 +63,20 @@ jobs:
       - name: Build debug APKs
         run: ./gradlew --no-daemon --stacktrace :app:assembleDebug :wear:assembleDebug
 
+      - name: Name APKs by branch and commit
+        id: package
+        env:
+          BUILD_REF: ${{ github.ref_name }}
+          BUILD_SHA: ${{ github.sha }}
+        run: |
+          bash scripts/ci/package-debug-apks.sh "$BUILD_REF" "$BUILD_SHA"
+          cat apk-artifacts/build.env >> "$GITHUB_OUTPUT"
+
       - name: Upload phone APK
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: wearmux-phone-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: wearmux-phone-debug-${{ steps.package.outputs.build_id }}
+          path: apk-artifacts/phone/*.apk
           if-no-files-found: error
           retention-days: 30
           compression-level: 0
@@ -73,8 +84,8 @@ jobs:
       - name: Upload Wear OS APK
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: wearmux-wear-debug
-          path: wear/build/outputs/apk/debug/wear-debug.apk
+          name: wearmux-wear-debug-${{ steps.package.outputs.build_id }}
+          path: apk-artifacts/wear/*.apk
           if-no-files-found: error
           retention-days: 30
           compression-level: 0

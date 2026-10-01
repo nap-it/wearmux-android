@@ -106,7 +106,7 @@ If no key is supplied the generated string is empty and the trajectory view stay
 
 ### Server address
 
-The compiled default is `http://172.20.10.2:8080`, defined in `integration/CloudConfig.kt`, with the Sherpa keyword spotter on port 9091. You do not need to rebuild to change it: open **Settings** in the app and set the unified server URL. The value is stored in shared preferences and reused on the next start.
+The compiled default is `http://172.20.10.2:8080`, defined in `integration/CloudConfig.kt`, with the Sherpa keyword spotter on port 9091. This is a development-network address, not a public WearMux service. You do not need to rebuild to change it: open **Settings**, enable **Developer mode**, and set the unified server URL. The value is stored in shared preferences and reused on the next start. Glasses object detection defaults to the bundled local YOLO model; remote voice commands and other server features still require a configured, reachable service.
 
 ### Wearable Wi-Fi credentials
 
@@ -147,6 +147,52 @@ When both a phone and a watch are attached, pass the serial to disambiguate:
 ```bash
 adb -s <serial> install -r app/build/outputs/apk/debug/app-debug.apk
 ```
+
+### Continuous integration and releases
+
+GitHub Actions and GitLab CI build the phone and Wear OS debug APKs for all branches when source code, models, build configuration, or CI scripts change. Documentation-only pushes skip compilation. A manual GitHub workflow run or GitLab **Run pipeline** builds the selected ref regardless of its changes.
+
+APK filenames include the branch and the first seven characters of the commit, for example `wearmux-phone-debug-main-a1b2c3d.apk`. The app's installed name and package ID stay the same. GitHub stores separate phone and watch artifact downloads; GitLab stores both APKs and `SHA256SUMS` in the `debug-apks` job's artifacts. Artifacts are retained for 30 days. The Git mirror copies source and tags; each platform builds and stores its own APKs.
+
+GitLab requires a Linux runner with the Docker or Kubernetes executor, able to run untagged jobs and download dependencies from Docker Hub, Google, and Gradle/JetBrains. Enable an available runner under **Settings → CI/CD → Runners**. Debug builds need no signing secrets. `NAVISENS_DEVELOPER_KEY` can optionally be added under **Settings → CI/CD → Variables** to enable trajectory features in GitLab builds. GitHub secrets are not copied to GitLab by mirroring.
+
+The GitHub **Release APKs** workflow builds signed APKs, runs JVM tests, verifies matching phone/watch signatures and versions, and creates a draft research prerelease. Configure these GitHub repository secrets once:
+
+- `WEARMUX_KEYSTORE_BASE64`
+- `WEARMUX_KEYSTORE_PASSWORD`
+- `WEARMUX_KEY_ALIAS`
+- `WEARMUX_KEY_PASSWORD`
+- Optionally, `NAVISENS_DEVELOPER_KEY`
+
+Keep a backup of the release keystore and reuse it for later releases so installed apps can update. GitLab's tag pipeline produces debug artifacts; the signed distribution APKs come from the GitHub release workflow.
+
+For the first release, the shared values in `gradle.properties` are already `wearmux.versionName=1.0.0` and `wearmux.versionCode=1`. Commit the release changes on `main`, push them to GitLab, then create and push the matching tag:
+
+```bash
+git switch main
+git pull --ff-only origin main
+git tag -a v1.0.0 -m "WearMux Android initial research release"
+git push origin v1.0.0
+```
+
+Wait for the tag to appear on the GitHub mirror. If it does not automatically start the release workflow, dispatch it explicitly:
+
+```bash
+gh workflow run release-apks.yml \
+  --repo nap-it/wearmux-android --ref main -f tag=v1.0.0
+```
+
+Tag pushes and manual runs default to a draft prerelease. To prepare a stable draft on a later manual run, pass `-f prerelease=false`. For each subsequent published version, increase `wearmux.versionCode` and update `wearmux.versionName` before creating the matching tag. A published release's APKs cannot be replaced by rerunning the workflow.
+
+Before publishing the draft, download its signed APKs and verify:
+
+1. A fresh phone installation launches and handles the requested permissions.
+2. A compatible wearable connects, streams data, and reconnects after disconnection.
+3. Local glasses detection works without a remote server; configured server features work with your server.
+4. The signed companion communicates with the phone and receives vibration/notification feedback on the paired watch.
+5. Recording and playback work for the features you plan to demonstrate.
+
+Installing a signed release over a debug installation may require uninstalling the debug app first, which removes its local data. Once testing passes, review the generated description under GitHub **Releases** and publish the draft. Keep the prerelease designation while the release is being evaluated.
 
 ## Running the application
 
