@@ -23,7 +23,7 @@ class InferenceManager(
         private const val TAG = "InferenceManager"
     }
 
-    private val _mode = MutableStateFlow(InferenceMode.CLOUD)
+    private val _mode = MutableStateFlow(InferenceMode.LOCAL)
     val mode: StateFlow<InferenceMode> = _mode
 
     private val _cloudUrl = MutableStateFlow(CloudConfig.DETECT_URL)

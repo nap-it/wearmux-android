@@ -247,7 +247,7 @@ class WearableService : Service(), LifecycleOwner {
         internal val _routeRecording = MutableStateFlow(false); val routeRecording: StateFlow<Boolean> = _routeRecording
         internal val _routeRecordingWaypointCount = MutableStateFlow(0); val routeRecordingWaypointCount: StateFlow<Int> = _routeRecordingWaypointCount
         internal val _routeRecordingWaypoints = MutableStateFlow<List<Pair<Double, Double>>>(emptyList()); val routeRecordingWaypoints: StateFlow<List<Pair<Double, Double>>> = _routeRecordingWaypoints
-        internal val _glassesInferenceMode = MutableStateFlow(InferenceMode.CLOUD); val glassesInferenceMode: StateFlow<InferenceMode> = _glassesInferenceMode
+        internal val _glassesInferenceMode = MutableStateFlow(InferenceMode.LOCAL); val glassesInferenceMode: StateFlow<InferenceMode> = _glassesInferenceMode
         internal val _glassesInferenceCloudUrl = MutableStateFlow(CloudConfig.DETECT_URL); val glassesInferenceCloudUrl: StateFlow<String> = _glassesInferenceCloudUrl
         internal val _watchState = MutableStateFlow(WatchClient.State.DISCONNECTED); val watchState: StateFlow<WatchClient.State> = _watchState
         internal val _watchName = MutableStateFlow<String?>(null); val watchName: StateFlow<String?> = _watchName
