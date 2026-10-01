@@ -1,5 +1,7 @@
 # Android BLE bridge protocol v1
 
+Authentication is deployment-specific. The Android companion may omit `Authorization` for the local Droidspaces deployment; remote deployments should use `Authorization: Bearer <shared token>` with a non-empty token.
+
 The bridge in the existing WearMux Android app owns Bluetooth GATT. Headless owns the BrilliantSole device protocol, rendering and inference. This targets Brilliant Labs Frame running custom BrilliantSole/BrilliantWear firmware; stock Frame's Lua protocol is different. Android opens a WebSocket to the headless server at `/android-ble`, using `Authorization: Bearer <shared token>` in the upgrade request. A token is required; it is never sent in the URL or logged. Use the Droidspaces Debian bridge IP or a forwarded port, not an assumed shared loopback address.
 
 Frames are JSON text, at most 64 KiB. Binary characteristic values are canonical standard Base64. This bridge initially supports one glasses connection per companion and one companion per headless listener. Device IDs are Bluetooth MAC addresses. Headless normalizes case and colon separators for filters, but frames use the original device ID throughout a connection.

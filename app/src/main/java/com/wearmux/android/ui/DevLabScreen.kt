@@ -18,6 +18,7 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Divider
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -130,17 +131,22 @@ private fun HeadlessBridgePanel() {
     val context = LocalContext.current
     var endpoint by remember { mutableStateOf("ws://172.28.178.197:8765/android-ble") }
     var token by remember { mutableStateOf("") }
+    var useAuthentication by remember { mutableStateOf(false) }
     var filter by remember { mutableStateOf("") }
     val bridgeActive by HeadlessBridgeOwnership.state.collectAsStateWithLifecycle()
-    val canStart = BridgeConfiguration.valid(endpoint.trim(), token)
+    val canStart = BridgeConfiguration.valid(endpoint.trim(), if (useAuthentication) token else "")
     Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
         Text("Headless Bluetooth bridge", color = Constants.primaryTextColor, fontSize = 16.sp)
         Text("For Brilliant Labs Frame with custom BrilliantSole/BrilliantWear firmware. Takes exclusive BLE ownership while active; explicit stop restores the ordinary glasses client.", color = Constants.secondaryTextColor, fontSize = 12.sp)
         OutlinedTextField(endpoint, { endpoint = it }, label = { Text("WebSocket /android-ble URL") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(token, { token = it }, label = { Text("Shared token (16–256 chars)") }, singleLine = true, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
+        androidx.compose.foundation.layout.Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(checked = useAuthentication, onCheckedChange = { useAuthentication = it })
+            Text("Use shared-token authentication (optional for local Droidspaces)", color = Constants.secondaryTextColor, fontSize = 12.sp)
+        }
+        if (useAuthentication) OutlinedTextField(token, { token = it }, label = { Text("Shared token (16–256 chars)") }, singleLine = true, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
         OutlinedTextField(filter, { filter = it }, label = { Text("Glasses MAC/name (optional)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
         androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(enabled = canStart, onClick = { val i = Intent(context, HeadlessBleBridgeService::class.java).putExtra(HeadlessBleBridgeService.URL, endpoint.trim()).putExtra(HeadlessBleBridgeService.TOKEN, token).putExtra(HeadlessBleBridgeService.FILTER, filter.trim()); if (Build.VERSION.SDK_INT >= 26) context.startForegroundService(i) else context.startService(i); token = "" }) { Text("Start bridge") }
+            Button(enabled = canStart, onClick = { val i = Intent(context, HeadlessBleBridgeService::class.java).putExtra(HeadlessBleBridgeService.URL, endpoint.trim()).putExtra(HeadlessBleBridgeService.TOKEN, if (useAuthentication) token else "").putExtra(HeadlessBleBridgeService.FILTER, filter.trim()); if (Build.VERSION.SDK_INT >= 26) context.startForegroundService(i) else context.startService(i); token = "" }) { Text("Start bridge") }
             Button(enabled = bridgeActive, onClick = { val stop = Intent(context, HeadlessBleBridgeService::class.java).setAction(HeadlessBleBridgeService.STOP); if (Build.VERSION.SDK_INT >= 26) context.startForegroundService(stop) else context.startService(stop) }) { Text("Stop bridge") }
         }
     }

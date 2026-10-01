@@ -1,8 +1,8 @@
 # Headless Bluetooth bridge
 
-The existing WearMux Android application can optionally take exclusive control of a Brilliant Labs Frame running custom BrilliantSole/BrilliantWear firmware for `wearmux-headless`. In the app, open Settings, enable Developer mode, then open **Dev / Lab → Overview**. Enter the headless WebSocket URL and shared token, and start the bridge. The URL must end in `/android-ble` and contain no query parameters. Use the Droidspaces Debian address or an explicitly forwarded Android-host port, for example `ws://172.28.178.197:8765/android-ble`.
+The existing WearMux Android application can optionally take exclusive control of a Brilliant Labs Frame running custom BrilliantSole/BrilliantWear firmware for `wearmux-headless`. In the app, open Settings, enable Developer mode, then open **Dev / Lab → Overview**. Enter the headless WebSocket URL and start the bridge. Local Droidspaces deployments may omit authentication; remote deployments should enable shared-token authentication and use a 16–256 character token. The URL must end in `/android-ble` and contain no query parameters. Use the Droidspaces Debian address or an explicitly forwarded Android-host port, for example `ws://172.28.178.197:8765/android-ble`.
 
-The bridge sends an authenticated outbound WebSocket upgrade with `Authorization: Bearer <token>`. The token is required, is never logged, and is kept only in memory by the service. Protocol frames are JSON text up to 64 KiB; characteristic bytes use standard Base64.
+When authentication is enabled, the bridge sends an outbound WebSocket upgrade with `Authorization: Bearer <token>`. Blank tokens omit the header; tokens are never logged and are kept only in memory by the service. Protocol frames are JSON text up to 64 KiB; characteristic bytes use standard Base64.
 
 Android owns raw GATT and headless owns the BrilliantSole protocol. The bridge scans the custom Frame main service `ea6d0000-a725-4f9b-893d-c3913e33b39f`, enables RX notifications, negotiates ATT MTU (prefer 517, fallback 23), forwards raw RX values, and serializes TX writes with response. It does not parse sensor/display messages.
 
