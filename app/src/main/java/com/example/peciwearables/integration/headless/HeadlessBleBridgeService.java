@@ -55,7 +55,7 @@ public final class HeadlessBleBridgeService extends Service {
             String nextUrl = i.getStringExtra(URL);
             String nextToken = i.getStringExtra(TOKEN);
             if (!validConfiguration(nextUrl, nextToken)) { sendError("invalid bridge configuration"); stopSelf(); return START_NOT_STICKY; }
-            url = nextUrl; token = nextToken; filter = i.getStringExtra(FILTER); connectSocket();
+            url = nextUrl; token = nextToken == null ? "" : nextToken; filter = i.getStringExtra(FILTER); connectSocket();
         }
         return START_NOT_STICKY;
     }
@@ -81,7 +81,10 @@ public final class HeadlessBleBridgeService extends Service {
 
     private void connectSocket() {
         if (url == null || token == null || socket != null) return;
-        Request req = new Request.Builder().url(url).header("Authorization", "Bearer " + token).build();
+        Request.Builder request = new Request.Builder().url(url);
+        String authorization = BridgeConfiguration.authorizationHeader(token);
+        if (authorization != null) request.header("Authorization", authorization);
+        Request req = request.build();
         socket = http.newWebSocket(req, new WebSocketListener() {
             @Override public void onOpen(WebSocket s, Response r) { main.post(() -> { if (s != socket || destroyed) return; socketReady=false; helloSeen=false; send(BridgeProtocol.hello()); }); }
             @Override public void onMessage(WebSocket s, String text) { main.post(() -> { if (s == socket && !destroyed) handle(text); }); }
