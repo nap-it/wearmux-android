@@ -17,6 +17,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Divider
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.platform.LocalContext
+import android.content.Intent
+import android.os.Build
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -33,6 +40,9 @@ import com.wearmux.android.AppViewModel
 import com.wearmux.android.CameraScreen
 import com.wearmux.android.Constants
 import com.wearmux.android.integration.modules.camera.CameraStreamStatus
+import com.wearmux.android.integration.headless.HeadlessBleBridgeService
+import com.wearmux.android.integration.headless.BridgeConfiguration
+import com.wearmux.android.integration.HeadlessBridgeOwnership
 
 /**
  * Aba "Dev/Laboratório": ferramentas técnicas de teste e monitorização em
@@ -110,6 +120,29 @@ private fun OverviewTab(viewModel: AppViewModel) {
         OverviewRow("Camera (video)", cameraStreamStatusLabel(cameraStreamHealth.status), cameraStreamStatusColor(cameraStreamHealth.status))
         OverviewRow("Microphone", if (glassesMicStreaming) "Active" else "Inactive", if (glassesMicStreaming) Constants.successColor else Constants.secondaryTextColor)
         OverviewRow("IMU (motion)", if (imuStreamingEnabled) "Active" else "Inactive", if (imuStreamingEnabled) Constants.successColor else Constants.secondaryTextColor)
+        Divider(color = Constants.secondaryTextColor.copy(alpha = 0.25f))
+        HeadlessBridgePanel()
+    }
+}
+
+@Composable
+private fun HeadlessBridgePanel() {
+    val context = LocalContext.current
+    var endpoint by remember { mutableStateOf("ws://172.28.178.197:8765/android-ble") }
+    var token by remember { mutableStateOf("") }
+    var filter by remember { mutableStateOf("") }
+    val bridgeActive by HeadlessBridgeOwnership.state.collectAsStateWithLifecycle()
+    val canStart = BridgeConfiguration.valid(endpoint.trim(), token)
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+        Text("Headless Bluetooth bridge", color = Constants.primaryTextColor, fontSize = 16.sp)
+        Text("For Brilliant Labs Frame with custom BrilliantSole/BrilliantWear firmware. Takes exclusive BLE ownership while active; explicit stop restores the ordinary glasses client.", color = Constants.secondaryTextColor, fontSize = 12.sp)
+        OutlinedTextField(endpoint, { endpoint = it }, label = { Text("WebSocket /android-ble URL") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(token, { token = it }, label = { Text("Shared token (16–256 chars)") }, singleLine = true, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(filter, { filter = it }, label = { Text("Glasses MAC/name (optional)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+        androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(enabled = canStart, onClick = { val i = Intent(context, HeadlessBleBridgeService::class.java).putExtra(HeadlessBleBridgeService.URL, endpoint.trim()).putExtra(HeadlessBleBridgeService.TOKEN, token).putExtra(HeadlessBleBridgeService.FILTER, filter.trim()); if (Build.VERSION.SDK_INT >= 26) context.startForegroundService(i) else context.startService(i); token = "" }) { Text("Start bridge") }
+            Button(enabled = bridgeActive, onClick = { val stop = Intent(context, HeadlessBleBridgeService::class.java).setAction(HeadlessBleBridgeService.STOP); if (Build.VERSION.SDK_INT >= 26) context.startForegroundService(stop) else context.startService(stop) }) { Text("Stop bridge") }
+        }
     }
 }
 

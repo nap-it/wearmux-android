@@ -40,6 +40,7 @@ import com.wearmux.android.integration.normalizeImuSensorRateMs
 import com.wearmux.android.integration.normalizeSensorRateMsForSdk
 import com.wearmux.android.integration.protocol.tlv.TlvWriter
 import com.wearmux.android.integration.protocol.tlv.TxRxMessageType
+import com.wearmux.android.integration.HeadlessBridgeOwnership
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -403,6 +404,7 @@ class OmiGlassesBleClient(private val context: Context) : OmiGlassesBleClientApi
     // ── Scan ──
 
     fun startScan() {
+        if (HeadlessBridgeOwnership.isActive()) return
         if (isScanning) return
         val manager = context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
         val adapter = manager?.adapter ?: run {
@@ -478,6 +480,7 @@ class OmiGlassesBleClient(private val context: Context) : OmiGlassesBleClientApi
     // ── Connect ──
 
     override fun connectDevice(device: BluetoothDevice) {
+        if (HeadlessBridgeOwnership.isActive()) return
         stopScan()
         Log.d(TAG, "Connecting to device: ${device.name} [${device.address}]")
         connectInternal(device, resetRetryCount = true, source = "manual")
@@ -494,6 +497,7 @@ class OmiGlassesBleClient(private val context: Context) : OmiGlassesBleClientApi
     }
 
     private fun connectInternal(device: BluetoothDevice, resetRetryCount: Boolean, source: String) {
+        if (HeadlessBridgeOwnership.isActive()) return
         if (resetRetryCount) connectRetryCount = 0
         manualDisconnectRequested = false
         prepareFreshConnectionState()
