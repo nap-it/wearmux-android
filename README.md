@@ -1,6 +1,6 @@
 # WearMux — Android Hub
 
-WearMux brings smartglasses, wristbands, smartwatches, and smartphone sensors together in one Android application. It collects images, audio, motion, and location data, runs selected processing on the phone or a remote server, and delivers feedback through audio, vibration, and wearable notifications.
+WearMux brings smartglasses, wristbands, smartwatches, and smartphone sensors together in one Android application. It collects images, audio, motion, and location data, runs selected processing on the phone or a remote server, and delivers feedback through audio, vibration, and wearable notifications. For Brilliant Wear hardware and development resources, see the [Brilliant Wear website](https://brilliantwear.com/) and [JavaScript SDK repository](https://github.com/brilliantsole/BrilliantWear-JavaScript-SDK).
 
 This repository contains the Android hub and its Wear OS companion, developed for research into multimodal sensing and interactive wearable applications. The [headless research tool](https://github.com/nap-it/wearmux-headless) is maintained separately.
 
