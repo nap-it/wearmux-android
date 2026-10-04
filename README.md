@@ -122,11 +122,9 @@ The [technical guide](docs/technical-guide.md) covers configuration, internal ar
 
 The paper demonstrates the Android hub in outdoor pedestrian-assistance scenarios using smartglasses, a smartwatch, and a phone. Watch the [WearMux demonstration](https://youtu.be/r0GW5SRqzHw).
 
-For unattended acquisition and distributed research workflows, see [WearMux Headless](https://github.com/nap-it/wearmux-headless).
-
 ## Authors and Contact
 
-Development of WearMux Android is part of ongoing research work at [Instituto de Telecomunicações' Network Architectures and Protocols Group](https://www.it.pt/Groups/Index/36).
+WearMux is research work by the [Instituto de Telecomunicações' Network Architectures and Protocols Group](https://www.it.pt/Groups/Index/36).
 
 Questions and bug reports: [andreclerigo@ua.pt](mailto:andreclerigo@ua.pt) / [gavftavares@ua.pt](mailto:gavftavares@ua.pt) / [rafael.feliciano@ua.pt](mailto:rafael.feliciano@ua.pt)
 

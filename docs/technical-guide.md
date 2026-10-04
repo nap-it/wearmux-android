@@ -6,7 +6,24 @@ For an overview, setup instructions, citation, and contacts, see the [project RE
 
 *Android hub architecture, reproduced from Figure 3 of the WearMux manuscript supplied with this project.*
 
-## Repository contents
+## Contents
+
+- [Repository structure](#repository-structure)
+- [Device adapters](#device-adapters)
+- [Requirements](#requirements)
+- [Local configuration](#local-configuration)
+- [Build](#build)
+  - [Continuous integration and releases](#continuous-integration-and-releases)
+- [Running the application](#running-the-application)
+- [Driving the app from the command line](#driving-the-app-from-the-command-line)
+- [Watching the logs](#watching-the-logs)
+- [Talking to the server](#talking-to-the-server)
+  - [Publishing over MQTT](#publishing-over-mqtt)
+- [Wear OS companion](#wear-os-companion)
+- [Tests](#tests)
+- [Troubleshooting](#troubleshooting)
+
+## Repository structure
 
 ```text
 .
@@ -24,7 +41,7 @@ For an overview, setup instructions, citation, and contacts, see the [project RE
 └── gradlew
 ```
 
-The integration layer under `app/src/main/java/com/example/peciwearables/integration/` follows the architecture figure in the paper, one package per block:
+The integration layer under `app/src/main/java/com/example/peciwearables/integration/` groups the responsibilities shown in the architecture figure as follows:
 
 ```text
 integration/
@@ -41,34 +58,22 @@ integration/
 ├── observation/  Timestamper: the hub timestamp carried by every observation
 ├── api/          HTTP, WebSocket and MQTT clients for the remote services
 ├── output/       Output dispatcher: alerts to the watch, wristband and phone
-├── consumer/     Local consumer: telemetry reporting
+├── consumer/     Local consumers, including telemetry reporting
 ├── safety/       Use-case logic and decision mapping
 ├── protocol/     Wire formats (packet headers, TLV, IMU payloads)
 ├── udp/          UDP session handling for the Wi-Fi image path
 └── network/      NSD registration, Wi-Fi locks, interface helpers
 ```
 
-## Supported devices
+## Device adapters
 
-| Device | Transport | Capabilities exposed to the hub |
-| --- | --- | --- |
-| Omi AI glasses (ESP-based) | BLE GATT, Wi-Fi/UDP | Camera, microphone, 9-DoF IMU, Wi-Fi handoff |
-| Brilliant Wear wristband/insole | BLE GATT | 9-DoF IMU, haptics, on-device ML |
-| Wear OS watch | Wear OS Data Layer | IMU, heart rate, audiovisual alerts, vibration |
-| ESP32-S3 camera board | Wi-Fi/UDP | Camera, IMU |
-| The phone itself | Local Android APIs | Camera, microphone, IMU, GPS, audio alerts |
-
-Adding a device means writing an adapter and a session under `integration/adapters/devices/`. Nothing above the adapter layer refers to a device by brand; the UI and the pipelines reason about capabilities.
+The user-facing device list and its qualifications are maintained in the [project README](../README.md#supported-devices). In the source tree, device-specific code lives under `integration/adapters/devices/`; adding a device generally means providing an adapter and session there, then exposing the resulting capabilities through the shared hub and module interfaces. Higher layers are designed to work primarily with capabilities, although integration and UI code may still contain device-specific handling where a transport or protocol requires it.
 
 ## Requirements
 
-- Android Studio with Android SDK 36 installed
-- JDK 17 or newer (the build has been exercised with JDK 17; Gradle 9.1 ships with the wrapper)
-- Phone running Android 14 (API 34) or newer, `arm64-v8a`
-- Wear OS device running API 34 or newer for the companion module, `armeabi-v7a`
-- A machine running the WearMux server repository if you intend to use offloaded inference
+For phone, wearable, and server prerequisites, see the [Requirements section in the project README](../README.md#requirements). The build itself requires Android Studio with Android SDK 36 and JDK 17 or newer; the wrapper supplies Gradle 9.1. The Wear OS companion is built as a separate module with `./gradlew :wear:assembleDebug`.
 
-Bluetooth Low Energy is required. The camera is optional at the manifest level, so the app installs on devices without one.
+Bluetooth Low Energy is required for wearable connections. The camera is optional at the manifest level, so the app can be installed on devices without one.
 
 ## Local configuration
 
@@ -315,7 +320,7 @@ The hub expects the WearMux server on the address configured in Settings:
 | Telemetry and returned decisions | `POST {base}/telemetry` |
 | Keyword spotting stream | `ws://{host}:9091` |
 
-Every request carries `hub_timestamp`, stamped when the observation left acquisition rather than when the request was built. The server never replaces it; that value is what lets the fusion engine correlate motion, vision and speech coming from different devices.
+Every request carries `hub_timestamp`, stamped when the observation leaves acquisition rather than when the request is built. Consumers can use that shared timestamp to correlate motion, vision, and speech from different devices.
 
 ### Publishing over MQTT
 
@@ -348,7 +353,7 @@ Checking what is being published, with a broker running on the same host:
 mosquitto_sub -h 192.168.1.50 -t 'wearmux/#' -v
 ```
 
-The phone is a client, not a broker. The broker is a separate program that normally runs on the server machine, which is the side of the link the architecture figure puts it on; this repository does not ship one. Any MQTT 3.1.1 broker works and Mosquitto is the usual choice. On the server side, `mqtt_bridge.py` in the server repository subscribes to these topics and feeds them to the same routes the HTTP path uses, so enabling MQTT does not change what the server does with an observation.
+The phone is an MQTT client, not a broker. The broker is a separate program, usually running on the server side of the link; this repository does not ship one. Any MQTT 3.1.1 broker should work; Mosquitto is a common choice. Configure the external consumer of these topics according to the server or application that receives them.
 
 Publishing uses QoS 0, which suits observations that are only useful while they are recent. The connection is plain `tcp://` with no credentials: it is meant for a lab network, and a deployment outside one needs authentication and TLS added on both sides.
 
