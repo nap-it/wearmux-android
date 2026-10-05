@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">PECI Watch</string>
+    <string name="app_name">WearMux</string>
     <string name="notification_channel_imu">Stream IMU</string>
     <string name="notification_channel_imu_desc">Sensor streaming to the phone</string>
-    <string name="notification_imu_title">PECI streaming IMU</string>
+    <string name="notification_imu_title">WearMux streaming IMU</string>
     <string name="notification_imu_text">Sending accelerometer + gyroscope</string>
 </resources>

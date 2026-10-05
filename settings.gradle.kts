@@ -22,7 +22,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Peci Wearables"
+rootProject.name = "WearMux"
 include(":app")
 include(":wear")
  

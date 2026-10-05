@@ -41,7 +41,7 @@ For an overview, setup instructions, citation, and contacts, see the [project RE
 └── gradlew
 ```
 
-The integration layer under `app/src/main/java/com/example/peciwearables/integration/` groups the responsibilities shown in the architecture figure as follows:
+The integration layer under `app/src/main/java/com/wearmux/android/integration/` groups the responsibilities shown in the architecture figure as follows:
 
 ```text
 integration/
@@ -119,7 +119,7 @@ The glasses join the same network as the phone. The Wi-Fi dialog on the glasses 
 
 ### TFLite models
 
-`app/build.gradle.kts` copies the models from `models/` into `app/src/main/assets` before every build. The phone classifier becomes `peci_model.tflite` and the wristband model becomes `trained.tflite`. YAMNet, used for ambient sound classification, is optional and can be fetched with `scripts/download_yamnet.sh`; without it that path falls back to an RMS heuristic.
+`app/build.gradle.kts` copies the models from `models/` into `app/src/main/assets` before every build. The phone classifier becomes `wearmux_model.tflite` and the wristband model becomes `trained.tflite`. YAMNet, used for ambient sound classification, is optional and can be fetched with `scripts/download_yamnet.sh`; without it that path falls back to an RMS heuristic.
 
 ### Audio commands and recordings
 
@@ -257,8 +257,8 @@ Open a connected phone/device status view, then start a route recording to captu
 Latency runs write CSV files to the app external files directory:
 
 ```bash
-adb shell ls /sdcard/Android/data/com.example.peciwearables/files/benchmarks
-adb pull /sdcard/Android/data/com.example.peciwearables/files/benchmarks .
+adb shell ls /sdcard/Android/data/com.wearmux.android/files/benchmarks
+adb pull /sdcard/Android/data/com.wearmux.android/files/benchmarks .
 ```
 
 One file per path: `yolo_latency.csv`, `depth_latency.csv`, `kws_latency.csv`, `decisions_latency.csv` and the camera and microphone transport measurements. Every row carries the hub timestamp, so rows from different sources can be aligned.
@@ -269,30 +269,30 @@ The service accepts broadcasts, which is the practical way to script a measureme
 
 ```bash
 # Start and stop the foreground service
-adb shell am broadcast -a com.example.peciwearables.START_SERVICE
-adb shell am broadcast -a com.example.peciwearables.STOP_SERVICE
+adb shell am broadcast -a com.wearmux.android.START_SERVICE
+adb shell am broadcast -a com.wearmux.android.STOP_SERVICE
 
 # Connect devices
-adb shell am broadcast -a com.example.peciwearables.CONNECT_GLASSES
-adb shell am broadcast -a com.example.peciwearables.CONNECT_WRISTBAND
-adb shell am broadcast -a com.example.peciwearables.CONNECT_AUTO
+adb shell am broadcast -a com.wearmux.android.CONNECT_GLASSES
+adb shell am broadcast -a com.wearmux.android.CONNECT_WRISTBAND
+adb shell am broadcast -a com.wearmux.android.CONNECT_AUTO
 
 # Camera and microphone
-adb shell am broadcast -a com.example.peciwearables.TAKE_PICTURE
-adb shell am broadcast -a com.example.peciwearables.START_STREAM
-adb shell am broadcast -a com.example.peciwearables.STOP_STREAM
-adb shell am broadcast -a com.example.peciwearables.START_MICROPHONE
+adb shell am broadcast -a com.wearmux.android.TAKE_PICTURE
+adb shell am broadcast -a com.wearmux.android.START_STREAM
+adb shell am broadcast -a com.wearmux.android.STOP_STREAM
+adb shell am broadcast -a com.wearmux.android.START_MICROPHONE
 
 # Move the glasses to Wi-Fi, then open the UDP session on the address they report
-adb shell am broadcast -a com.example.peciwearables.SEND_WIFI --es ssid MyNetwork --es password secret
-adb shell am broadcast -a com.example.peciwearables.CONNECT_UDP
+adb shell am broadcast -a com.wearmux.android.SEND_WIFI --es ssid MyNetwork --es password secret
+adb shell am broadcast -a com.wearmux.android.CONNECT_UDP
 
 # Select where activity inference runs: APP, WRISTBAND or SERVER
-adb shell am broadcast -a com.example.peciwearables.SET_ML_PROCESSING_LOCATION \
+adb shell am broadcast -a com.wearmux.android.SET_ML_PROCESSING_LOCATION \
   --es ml_processing_location WRISTBAND
 
 # Point the hub at a server without opening Settings
-adb shell am broadcast -a com.example.peciwearables.UNIFIED_SERVER_SET_URL \
+adb shell am broadcast -a com.wearmux.android.UNIFIED_SERVER_SET_URL \
   --es unified_server_url http://192.168.1.50:8080
 ```
 
@@ -329,7 +329,7 @@ Besides the HTTP and WebSocket paths above, the hub can publish its outgoing obs
 It is off until a broker is configured. Under Settings, enable **Publish observations over MQTT** and fill in the broker and the topic prefix, or do it from a terminal:
 
 ```bash
-adb shell am broadcast -a com.example.peciwearables.MQTT_SET_CONFIG \
+adb shell am broadcast -a com.wearmux.android.MQTT_SET_CONFIG \
   --es mqtt_broker_url tcp://192.168.1.50:1883 \
   --es mqtt_topic_prefix wearmux \
   --ez mqtt_enabled true

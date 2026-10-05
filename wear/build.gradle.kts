@@ -4,13 +4,13 @@ plugins {
 }
 
 android {
-    namespace = "com.example.peciwearables.wear"
+    namespace = "com.wearmux.android.wear"
     compileSdk {
         version = release(36)
     }
 
     defaultConfig {
-        applicationId = "com.example.peciwearables"
+        applicationId = "com.wearmux.android"
         minSdk = 34
         targetSdk = 36
         ndk {

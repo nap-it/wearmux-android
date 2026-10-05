@@ -145,11 +145,11 @@
     }
   };
 
-  window.__peciSetDeveloperKey = function (key) {
+  window.__wearmuxSetDeveloperKey = function (key) {
     const trimmed = (key || "").trim();
     if (!trimmed || trimmed === "<developer-key>" || trimmed === "REPLACE_ME") return false;
     DEVELOPER_KEY = trimmed;
-    console.log("[peci-navisens] developer key set");
+    console.log("[wearmux-navisens] developer key set");
     return true;
   };
 
@@ -201,7 +201,7 @@
       // layout. Any later resize call will replace these with real dims via
       // the ResizeObserver path.
       cw = 400; ch = 400;
-      console.log("[peci-canvas] resize using fallback 400x400 (canvas & window both 0)");
+      console.log("[wearmux-canvas] resize using fallback 400x400 (canvas & window both 0)");
     }
     cssW = cw; cssH = ch;
     const want_w = Math.max(1, Math.floor(cw * dpr));
@@ -214,7 +214,7 @@
       // is visible even if the parent flex chain collapsed to 0.
       canvas.style.width  = cw + "px";
       canvas.style.height = ch + "px";
-      console.log("[peci-canvas] resized " + cw + "x" + ch + " @dpr" + dpr +
+      console.log("[wearmux-canvas] resized " + cw + "x" + ch + " @dpr" + dpr +
         " (canvas.client=" + canvas.clientWidth + "x" + canvas.clientHeight +
         ", window=" + window.innerWidth + "x" + window.innerHeight + ")");
     }
@@ -338,7 +338,7 @@
   // draw-time exception.
   function animLoop() {
     try { render(); }
-    catch (e) { console.error("[peci-canvas] render error:", e && e.message ? e.message : e); }
+    catch (e) { console.error("[wearmux-canvas] render error:", e && e.message ? e.message : e); }
     requestAnimationFrame(animLoop);
   }
   requestAnimationFrame(animLoop);
@@ -347,7 +347,7 @@
   // remotely without a devtools attach: reports canvas size + point count.
   setInterval(() => {
     if (!isRunning) return;
-    console.log("[peci-canvas] css=" + cssW + "x" + cssH +
+    console.log("[wearmux-canvas] css=" + cssW + "x" + cssH +
       " pts=" + points.length +
       " running=" + isRunning +
       " recv=" + sdkRecvCount);
@@ -449,11 +449,11 @@
   //         accel is m/s² including gravity, mag is µT (0 if disabled).
   //
   // Timestamp arrives from Android in milliseconds (System.currentTimeMillis).
-  let __peciSampleCount = 0;
-  let __peciLastLogT = 0;
-  window.__peciImuSample = function (tMs, gx, gy, gz, ax, ay, az, mx, my, mz) {
+  let __wearmuxSampleCount = 0;
+  let __wearmuxLastLogT = 0;
+  window.__wearmuxImuSample = function (tMs, gx, gy, gz, ax, ay, az, mx, my, mz) {
     imuEvtCount++;
-    __peciSampleCount++;
+    __wearmuxSampleCount++;
     if (!moduleReady || !isRunning) return;
     if (!window.Module || typeof window.Module.inputMotion !== "function") return;
     // Drop NaN/Inf samples — a single bad value puts the SDK step detector
@@ -476,12 +476,12 @@
     } catch (e) { /* SDK sometimes throws during teardown */ }
     // Diagnostic: rate + last sample once a second.
     const now = Date.now();
-    if (now - __peciLastLogT >= 1000) {
-      console.log("[peci-imu] samples/s=" + __peciSampleCount +
+    if (now - __wearmuxLastLogT >= 1000) {
+      console.log("[wearmux-imu] samples/s=" + __wearmuxSampleCount +
         " ax=" + ax.toFixed(2) + " ay=" + ay.toFixed(2) + " az=" + az.toFixed(2) +
         " gx=" + gx.toFixed(3) + " gy=" + gy.toFixed(3) + " gz=" + gz.toFixed(3));
-      __peciSampleCount = 0;
-      __peciLastLogT = now;
+      __wearmuxSampleCount = 0;
+      __wearmuxLastLogT = now;
     }
   };
 
@@ -489,11 +489,11 @@
   // stream is coming from the glasses (headmounted) or phone sensors.
   // WebView has no DeviceMotionEvent support, so we always run in external
   // mode and feed inputMotion ourselves with rad/s gyro + m/s² accel.
-  let __peciDeviceMode = "phone"; // "phone" | "headmounted" | "other"
-  window.__peciSetDeviceMode = function (mode) {
-    if ((mode === "headmounted" || mode === "phone" || mode === "other") && mode !== __peciDeviceMode) {
-      __peciDeviceMode = mode;
-      console.log("[peci-imu] device mode -> " + __peciDeviceMode);
+  let __wearmuxDeviceMode = "phone"; // "phone" | "headmounted" | "other"
+  window.__wearmuxSetDeviceMode = function (mode) {
+    if ((mode === "headmounted" || mode === "phone" || mode === "other") && mode !== __wearmuxDeviceMode) {
+      __wearmuxDeviceMode = mode;
+      console.log("[wearmux-imu] device mode -> " + __wearmuxDeviceMode);
     }
   };
 
@@ -548,8 +548,8 @@
       // WebView has no DeviceMotionEvent, and BS's "browser" path relies on
       // it. Kotlin always converts to deg/s + m/s² before calling us.
       // deviceType is advisory only (SDK log says it's ignored here).
-      const isHead = __peciDeviceMode === "headmounted";
-      const isOther = __peciDeviceMode === "other";
+      const isHead = __wearmuxDeviceMode === "headmounted";
+      const isOther = __wearmuxDeviceMode === "other";
       window.Module.start({
         developerKey:    DEVELOPER_KEY,
         inputSource:     "external",
@@ -607,11 +607,11 @@
   // Allow the native Kotlin side to trigger start/stop/reset so users have a
   // visible, always-present control even if the HTML button ever gets hidden
   // by a layout quirk inside the WebView.
-  window.__peciToggleTrajectory = function () { toggleSdk(); };
-  window.__peciStartTrajectory  = function () { return startSdk(); };
-  window.__peciStopTrajectory   = function () { return stopSdk(); };
-  window.__peciResetTrajectory  = function () { document.getElementById("btn-reset").click(); };
-  window.__peciIsRunning = function () { return !!isRunning; };
+  window.__wearmuxToggleTrajectory = function () { toggleSdk(); };
+  window.__wearmuxStartTrajectory  = function () { return startSdk(); };
+  window.__wearmuxStopTrajectory   = function () { return stopSdk(); };
+  window.__wearmuxResetTrajectory  = function () { document.getElementById("btn-reset").click(); };
+  window.__wearmuxIsRunning = function () { return !!isRunning; };
 </script>
 
 <!-- Load motiondna.js in a SEPARATE script block so window.Module and the

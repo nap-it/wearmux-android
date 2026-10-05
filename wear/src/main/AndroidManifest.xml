@@ -77,7 +77,7 @@
                 <data
                     android:scheme="wear"
                     android:host="*"
-                    android:pathPrefix="/peci/" />
+                    android:pathPrefix="/wearmux/" />
             </intent-filter>
         </service>
     </application>

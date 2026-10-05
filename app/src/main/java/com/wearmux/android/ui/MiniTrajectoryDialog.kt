@@ -1,0 +1,96 @@
+package com.wearmux.android.ui
+
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.wearmux.android.AppViewModel
+import com.wearmux.android.Constants
+import com.wearmux.android.integration.NavisensImuSource
+
+
+@Composable
+fun MiniTrajectoryDialog(
+    viewModel: AppViewModel,
+    forSource: NavisensImuSource,
+    title: String,
+    onDismiss: () -> Unit,
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            dismissOnBackPress = true,
+            dismissOnClickOutside = true,
+            usePlatformDefaultWidth = false,
+        ),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth(0.95f)
+                .clip(RoundedCornerShape(16.dp))
+                .background(Constants.cardBackground)
+                .border(BorderStroke(1.dp, Constants.cardBorderColor), RoundedCornerShape(16.dp))
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "Trajectory · $title",
+                    color = Constants.primaryTextColor,
+                    fontSize = 16.sp,
+                    modifier = Modifier.weight(1f),
+                )
+                IconButton(onClick = onDismiss) {
+                    Icon(
+                        Icons.Filled.Close,
+                        contentDescription = "Close",
+                        tint = Constants.primaryTextColor,
+                    )
+                }
+            }
+
+            NavisensWebView(
+                modifier = Modifier.fillMaxWidth(),
+                // Em FUSED encaminha o stream fundido (média ponderada
+                // adaptativa); demais fontes mantêm o fluxo dos óculos.
+                glassesImuFlow = if (forSource == NavisensImuSource.FUSED)
+                    viewModel.fusedImuStream
+                else
+                    viewModel.glassesImuStream,
+                onStarted = {},
+                onStopped = {},
+            )
+
+            Text(
+                text = "Source: ${forSource.label()}",
+                color = Constants.secondaryTextColor,
+                fontSize = 11.sp,
+            )
+        }
+    }
+}
+
+private fun NavisensImuSource.label(): String = when (this) {
+    NavisensImuSource.PHONE -> "Phone"
+    NavisensImuSource.GLASSES -> "Glasses"
+    NavisensImuSource.WATCH -> "Galaxy Watch"
+    NavisensImuSource.FUSED -> "Fused (N sources)"
+}

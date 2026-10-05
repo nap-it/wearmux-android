@@ -67,16 +67,16 @@
         <!--
             Receiver de debug — permite injectar notificações de teste via ADB
             sem precisar do servidor de fusão. Apenas activo em debug builds.
-            Uso: adb shell am broadcast -a com.example.peciwearables.WATCH_NOTIFY ...
+            Uso: adb shell am broadcast -a com.wearmux.android.WATCH_NOTIFY ...
         -->
         <receiver
             android:name=".DebugBroadcastReceiver"
             android:exported="true"
             tools:ignore="ExportedReceiver">
             <intent-filter>
-                <action android:name="com.example.peciwearables.WATCH_NOTIFY" />
-                <action android:name="com.example.peciwearables.WATCH_VIBRATE" />
-                <action android:name="com.example.peciwearables.WATCH_BEEP" />
+                <action android:name="com.wearmux.android.WATCH_NOTIFY" />
+                <action android:name="com.wearmux.android.WATCH_VIBRATE" />
+                <action android:name="com.wearmux.android.WATCH_BEEP" />
             </intent-filter>
         </receiver>
     </application>

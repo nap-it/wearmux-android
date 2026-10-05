@@ -123,7 +123,7 @@ jobs:
             fi
             expected_certificate="$certificate"
             "$aapt" dump badging "$apk" > "$RUNNER_TEMP/apk-badging.txt"
-            if ! grep -F "package: name='com.example.peciwearables' versionCode='$version_code' versionName='${RELEASE_TAG#v}'" "$RUNNER_TEMP/apk-badging.txt"; then
+            if ! grep -F "package: name='com.wearmux.android' versionCode='$version_code' versionName='${RELEASE_TAG#v}'" "$RUNNER_TEMP/apk-badging.txt"; then
               echo '::error::The APK package name or version does not match the release.'
               exit 1
             fi

@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-watch_test.py — inject watch notifications into PECI WearableService via ADB.
+watch_test.py — inject watch notifications into WearMux WearableService via ADB.
 
 Usage:
     python scripts/watch_test.py              # interactive menu
     python scripts/watch_test.py --sequence   # auto-run all scenarios in order
     python scripts/watch_test.py -d <serial>  # target a specific device
 
-Requires: adb on PATH, PECI app running on device (service must be started).
+Requires: adb on PATH, WearMux app running on device (service must be started).
 """
 
 import subprocess
@@ -15,7 +15,7 @@ import sys
 import time
 import argparse
 
-PACKAGE = "com.example.peciwearables"
+PACKAGE = "com.wearmux.android"
 SERVICE = f"{PACKAGE}/.integration.WearableService"
 
 # ── Intent action strings (must match WearableService companion object) ──────
@@ -57,7 +57,7 @@ def adb_devices() -> list[str]:
     return serials
 
 
-RECEIVER = "com.example.peciwearables/.DebugBroadcastReceiver"
+RECEIVER = "com.wearmux.android/.DebugBroadcastReceiver"
 
 def adb_startservice(action: str, extras: list[str], device: str | None = None) -> bool:
     """
@@ -177,7 +177,7 @@ def _log(label: str, detail: str) -> None:
 
 MENU = """
 ╔══════════════════════════════════════════╗
-║   PECI Watch Notification Tester         ║
+║   WearMux Watch Notification Tester      ║
 ╠══════════════════════════════════════════╣
 ║  Scenarios (match SafetyOutputs):        ║
 ║   1  approach        (⚠️  WARNING orange) ║
@@ -260,7 +260,7 @@ def run_sequence(device: str | None, delay: float = 4.0) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Inject PECI watch notifications via ADB for manual testing.",
+        description="Inject WearMux watch notifications via ADB for manual testing.",
     )
     parser.add_argument(
         "-d", "--device",
@@ -299,7 +299,7 @@ def main() -> None:
         device = devices[0]
 
     print(f"  Using device: {device}")
-    print("  ⚠  Make sure the PECI app is open and WearableService is running.")
+    print("  ⚠  Make sure the WearMux app is open and WearableService is running.")
     print("  ⚠  Galaxy Watch must be paired and nearby.\n")
 
     # ── Dispatch ──────────────────────────────────────────────────────────────

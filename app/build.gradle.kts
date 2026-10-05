@@ -19,12 +19,12 @@ val navisensDeveloperKey: String = run {
         ?: ""
 }
 
-val appModelTflite = file("../models/app/peci-edge-cpp-android-v9-impulse-#1/tflite-model/tflite_learn_937255_4.tflite")
-val wristbandModelTflite = file("../models/wristband/peci-edge-custom-v17-impulse-#1/trained.tflite")
+val appModelTflite = file("../models/app/wearmux-edge-cpp-android-v9-impulse-#1/tflite-model/tflite_learn_937255_4.tflite")
+val wristbandModelTflite = file("../models/wristband/wearmux-edge-custom-v17-impulse-#1/trained.tflite")
 
 val syncMlModelAssets by tasks.registering(Copy::class) {
     from(appModelTflite) {
-        rename { "peci_model.tflite" }
+        rename { "wearmux_model.tflite" }
     }
     from(wristbandModelTflite) {
         rename { "trained.tflite" }
@@ -37,13 +37,13 @@ tasks.named("preBuild") {
 }
 
 android {
-    namespace = "com.example.peciwearables"
+    namespace = "com.wearmux.android"
     compileSdk {
         version = release(36)
     }
 
     defaultConfig {
-        applicationId = "com.example.peciwearables"
+        applicationId = "com.wearmux.android"
         minSdk = 34
         targetSdk = 36
 
