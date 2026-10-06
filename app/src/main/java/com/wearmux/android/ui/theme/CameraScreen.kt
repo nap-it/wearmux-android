@@ -42,6 +42,7 @@ import com.wearmux.android.integration.depth.DepthRenderer
 import com.wearmux.android.integration.depth.DepthResult
 import com.wearmux.android.integration.depth.DepthVisualizationMode
 import com.wearmux.android.integration.inference.InferenceManager
+import com.wearmux.android.integration.inference.InferenceMode
 import com.wearmux.android.integration.modules.android.PhoneCameraSource
 import com.wearmux.android.integration.modules.android.TextToSpeechEngine
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
@@ -102,6 +103,7 @@ fun CameraScreen(viewModel: AppViewModel) {
     val esp32State by viewModel.esp32State.collectAsStateWithLifecycle()
     val glassesStateForStream by viewModel.glassesState.collectAsStateWithLifecycle()
     val isStreaming by viewModel.isStreaming.collectAsStateWithLifecycle()
+    val glassesInferenceMode by viewModel.glassesInferenceMode.collectAsStateWithLifecycle()
 
     val uc41Tts = remember(context) { TextToSpeechEngine(context, Locale.ENGLISH) }
     val uc41Enabled by viewModel.uc41Enabled.collectAsStateWithLifecycle()
@@ -467,6 +469,25 @@ fun CameraScreen(viewModel: AppViewModel) {
                     color = Color.White, fontSize = 12.sp,
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                 )
+            }
+            if (yoloEnabled) {
+                Spacer(Modifier.height(8.dp))
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = if (glassesInferenceMode == InferenceMode.CLOUD)
+                        Color(0xFF42A5F5).copy(alpha = 0.9f) else Color(0xFF8D6E63).copy(alpha = 0.9f),
+                    onClick = {
+                        val next = if (glassesInferenceMode == InferenceMode.CLOUD)
+                            InferenceMode.LOCAL else InferenceMode.CLOUD
+                        viewModel.setGlassesInferenceMode(next)
+                    }
+                ) {
+                    Text(
+                        text = if (glassesInferenceMode == InferenceMode.CLOUD) "YOLO: Cloud" else "YOLO: Local",
+                        color = Color.White, fontSize = 12.sp,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
             }
             Spacer(Modifier.height(8.dp))
             Surface(
