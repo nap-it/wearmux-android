@@ -8,20 +8,34 @@ For an overview, setup instructions, citation, and contacts, see the [project RE
 
 ## Contents
 
-- [Repository structure](#repository-structure)
-- [Device adapters](#device-adapters)
-- [Requirements](#requirements)
-- [Local configuration](#local-configuration)
-- [Build](#build)
-  - [Continuous integration and releases](#continuous-integration-and-releases)
-- [Running the application](#running-the-application)
-- [Driving the app from the command line](#driving-the-app-from-the-command-line)
-- [Watching the logs](#watching-the-logs)
-- [Talking to the server](#talking-to-the-server)
-  - [Publishing over MQTT](#publishing-over-mqtt)
-- [Wear OS companion](#wear-os-companion)
-- [Tests](#tests)
-- [Troubleshooting](#troubleshooting)
+- [WearMux Android technical guide](#wearmux-android-technical-guide)
+  - [Contents](#contents)
+  - [Repository structure](#repository-structure)
+  - [Device adapters](#device-adapters)
+  - [Requirements](#requirements)
+  - [Local configuration](#local-configuration)
+    - [SDK location](#sdk-location)
+    - [Navisens developer key](#navisens-developer-key)
+    - [Server address](#server-address)
+    - [Wearable Wi-Fi credentials](#wearable-wi-fi-credentials)
+    - [TFLite models](#tflite-models)
+    - [Audio commands and recordings](#audio-commands-and-recordings)
+  - [Build](#build)
+    - [Continuous integration and releases](#continuous-integration-and-releases)
+  - [Running the application](#running-the-application)
+    - [First start](#first-start)
+    - [Screens](#screens)
+    - [Connecting a wearable](#connecting-a-wearable)
+    - [Choosing where inference runs](#choosing-where-inference-runs)
+    - [Recording routes](#recording-routes)
+    - [Benchmarks](#benchmarks)
+  - [Driving the app from the command line](#driving-the-app-from-the-command-line)
+  - [Watching the logs](#watching-the-logs)
+  - [Talking to the server](#talking-to-the-server)
+    - [Publishing over MQTT](#publishing-over-mqtt)
+  - [Wear OS companion](#wear-os-companion)
+  - [Tests](#tests)
+  - [Troubleshooting](#troubleshooting)
 
 ## Repository structure
 
@@ -155,9 +169,20 @@ adb -s <serial> install -r app/build/outputs/apk/debug/app-debug.apk
 
 ### Continuous integration and releases
 
-GitHub Actions and GitLab CI build the phone and Wear OS debug APKs for all branches when source code, models, build configuration, or CI scripts change. Documentation-only pushes skip compilation. A manual GitHub workflow run or GitLab **Run pipeline** builds the selected ref regardless of its changes.
+GitLab is the development build service; GitHub distributes signed releases. The workflows are:
 
-APK filenames include the branch and the first seven characters of the commit, for example `wearmux-phone-debug-main-a1b2c3d.apk`. The app's installed name and package ID stay the same. GitHub stores separate phone and watch artifact downloads; GitLab stores both APKs and `SHA256SUMS` in the `debug-apks` job's artifacts. Artifacts are retained for 30 days. The Git mirror copies source and tags; each platform builds and stores its own APKs.
+| Platform | Trigger | Result |
+| --- | --- | --- |
+| GitLab `debug-apks` | Code or build changes pushed to any branch; **Run pipeline** for a selected ref | Phone and Wear OS debug APKs and checksums in job artifacts |
+| GitHub **Build debug APKs manually** | **Actions → Run workflow** for a selected branch or tag | Separate phone and Wear OS debug artifact downloads |
+| GitHub **Release APKs** | Version tag push; manual run with an existing tag | Signed phone and Wear OS APKs and checksums in a draft release |
+| GitLab `codenap-release` | Version tag push; explicit `RELEASE_TAG` backfill on `main` | CodeNap release notes and links to the signed GitHub downloads |
+
+Documentation-only pushes skip compilation. GitLab tag pushes do not build debug APKs automatically; a manual pipeline can still build a tag.
+
+Each branch uses its own CI configuration. Merge these CI changes from `main` into existing development branches so they also use the manual-only GitHub debug workflow.
+
+Debug APK filenames include the branch and the first seven characters of the commit, for example `wearmux-phone-debug-main-a1b2c3d.apk`. The app's installed name and package ID stay the same. Debug artifacts are retained for 30 days. Signed release downloads use the version tag in their filenames and remain attached to the published GitHub release. The Git mirror copies source and tags. Each platform creates its own release page from the same repository release notes.
 
 GitLab supports Linux x86_64 shell, Docker, and Kubernetes runners with **glibc 2.17 or newer**. The setup script reports and checks the host's glibc version, installs checksum-verified Temurin JDK 21 and Android SDK 36 under the job workspace, and caches them; no root access, `sudo`, or package installation is required during the job. Temurin runs on older glibc hosts than the JetBrains runtime used previously. Gradle requires Java 21 without a vendor restriction, so it uses the provided Temurin JDK instead of downloading JetBrains again. The new JDK cache directory is separate from the old one; no manual cache clearing is required.
 
@@ -167,10 +192,10 @@ Enable an available runner that accepts untagged jobs under **Settings → CI/CD
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y bash git curl tar coreutils ca-certificates
+sudo apt-get install -y bash git curl tar coreutils ca-certificates python3
 ```
 
-These commands are host setup, not pipeline steps. Debug builds need no signing secrets. `NAVISENS_DEVELOPER_KEY` can optionally be added under **Settings → CI/CD → Variables** to enable trajectory features in GitLab builds. GitHub secrets are not copied to GitLab by mirroring.
+These commands are host setup, not pipeline steps. The CodeNap release job uses standard-library Python 3.5 or newer and Git; it does not install the Android SDK or build APKs. Debug builds need no signing secrets. `NAVISENS_DEVELOPER_KEY` can optionally be added under **Settings → CI/CD → Variables** to enable trajectory features in GitLab builds.
 
 The GitHub **Release APKs** workflow builds signed APKs, runs JVM tests, verifies matching phone/watch signatures and versions, and creates a draft research prerelease. Configure these GitHub repository secrets once:
 
@@ -179,26 +204,6 @@ The GitHub **Release APKs** workflow builds signed APKs, runs JVM tests, verifie
 - `WEARMUX_KEY_ALIAS`
 - `WEARMUX_KEY_PASSWORD`
 - Optionally, `NAVISENS_DEVELOPER_KEY`
-
-Keep a backup of the release keystore and reuse it for later releases so installed apps can update. GitLab's tag pipeline produces debug artifacts; the signed distribution APKs come from the GitHub release workflow.
-
-For the first release, the shared values in `gradle.properties` are already `wearmux.versionName=1.0.0` and `wearmux.versionCode=1`. Commit the release changes on `main`, push them to GitLab, then create and push the matching tag:
-
-```bash
-git switch main
-git pull --ff-only origin main
-git tag -a v1.0.0 -m "WearMux Android initial research release"
-git push origin v1.0.0
-```
-
-Wait for the tag to appear on the GitHub mirror. If it does not automatically start the release workflow, dispatch it explicitly:
-
-```bash
-gh workflow run release-apks.yml \
-  --repo nap-it/wearmux-android --ref main -f tag=v1.0.0
-```
-
-Tag pushes and manual runs default to a draft prerelease. To prepare a stable draft on a later manual run, pass `-f prerelease=false`. For each subsequent published version, increase `wearmux.versionCode` and update `wearmux.versionName` before creating the matching tag. A published release's APKs cannot be replaced by rerunning the workflow.
 
 Before publishing the draft, download its signed APKs and verify:
 

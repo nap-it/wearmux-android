@@ -34,5 +34,9 @@ Thumbs.db
 benchmarks/
 apk-artifacts/
 
+# Python CI helpers
+__pycache__/
+*.pyc
+
 # Brainstorming visual-companion scratch files
 .superpowers/

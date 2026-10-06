@@ -145,65 +145,19 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
+          # Read docs/releases/<tag>.md from the checked-out release version.
+          python3 scripts/ci/release.py metadata --tag "$RELEASE_TAG" > "$RUNNER_TEMP/release-metadata.json"
+          jq -r '.description' "$RUNNER_TEMP/release-metadata.json" > "$RUNNER_TEMP/release-notes.md"
+          title=$(jq -r '.name' "$RUNNER_TEMP/release-metadata.json")
           if gh release view "$RELEASE_TAG" --json isDraft > "$RUNNER_TEMP/release.json"; then
             if ! jq -e '.isDraft == true' "$RUNNER_TEMP/release.json" > /dev/null; then
               echo '::error::This release is already published. Create a new version instead of replacing its APKs.'
               exit 1
             fi
             gh release upload "$RELEASE_TAG" release-artifacts/* --clobber
-            gh release edit "$RELEASE_TAG" --prerelease="$RELEASE_PRERELEASE"
+            gh release edit "$RELEASE_TAG" --prerelease="$RELEASE_PRERELEASE" \
+              --title "$title" --notes-file "$RUNNER_TEMP/release-notes.md"
           else
-            cat > "$RUNNER_TEMP/release-notes.md" <<'NOTES'
-          Research release of the WearMux Android hub and Wear OS companion,
-          accompanying the manuscript “WearMux: Real-Time Multimodal Sensing and
-          Feedback across Heterogeneous Wearables.”
-
-          WearMux combines wearable and smartphone sensing with local or remote
-          processing and audio, haptic, and watch feedback.
-
-          ### Included capabilities
-
-          - Integration paths for Omi AI glasses, Brilliant Wear / Brilliant Sole
-            wristbands and insoles, ESP32-S3 camera devices, and Wear OS watches.
-          - Camera, microphone, motion, heart-rate, and location acquisition,
-            depending on the connected device.
-          - Selected local inference and optional remote processing.
-          - Live monitoring, recording, wearable feedback, and HTTP, WebSocket,
-            and optional MQTT integration.
-
-          ### Installation and configuration
-
-          - Phone: Android 14+ (API 34), arm64-v8a.
-          - Watch: API 34+, compatible with armeabi-v7a. Install the companion APK
-            on your paired watch with ADB.
-          - Wearable capabilities require compatible hardware and firmware.
-          - Glasses object detection defaults to local processing. For remote
-            services, enable Developer mode in Settings and set your server URL;
-            the compiled default address belongs to the development setup.
-          - Remote voice commands require the Sherpa keyword-spotting service.
-          - The optional Navisens trajectory view requires a valid developer key
-            configured when building.
-
-          Download the phone APK and, if needed, the watch APK from this release.
-          SHA256SUMS provides checksums for both downloads.
-
-          Existing debug installations may require uninstalling before installing
-          these signed APKs, which removes their local app data.
-
-          ### Research scope
-
-          This release is intended for research and experimentation. Device
-          compatibility and performance depend on hardware, firmware, and network
-          conditions. WearMux Headless is maintained separately.
-
-          Documentation: https://github.com/nap-it/wearmux-android#readme
-          Demonstration: https://youtu.be/r0GW5SRqzHw
-          License: GPL-3.0.
-          NOTES
-            title="WearMux Android $RELEASE_TAG — Research release"
-            if [[ "$RELEASE_TAG" == 'v1.0.0' ]]; then
-              title="WearMux Android $RELEASE_TAG — Initial research release"
-            fi
             prerelease_args=()
             if [[ "$RELEASE_PRERELEASE" == 'true' ]]; then
               prerelease_args+=(--prerelease)

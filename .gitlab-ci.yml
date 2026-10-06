@@ -4,6 +4,7 @@ image: buildpack-deps:jammy-scm
 
 stages:
   - build
+  - release
 
 variables:
   ANDROID_HOME: "$CI_PROJECT_DIR/.android-sdk"
@@ -27,11 +28,13 @@ debug-apks:
   stage: build
   timeout: 45 minutes
   rules:
-    # Web runs and tags are explicit requests, regardless of the changed files.
+    # A requested release backfill on main only publishes metadata and links.
+    - if: '$RELEASE_TAG && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      when: never
+    # Manual pipelines build the selected ref, regardless of the changed files.
     - if: '$CI_PIPELINE_SOURCE == "web"'
-    - if: '$CI_COMMIT_TAG'
-    # Keep branch pushes aligned with the GitHub workflow: source/build changes
-    # run the build, while documentation-only pushes do not.
+    # All development branches build on code pushes. Release tags are built
+    # and signed by GitHub; documentation-only pushes skip compilation.
     - changes:
         paths:
           - app/**/*
@@ -54,7 +57,7 @@ debug-apks:
   before_script:
     - |
       # Skip docs inside source directories before downloading the SDK. Rules
-      # cannot express GitHub's negative path patterns on every GitLab version.
+      # cannot exclude these extensions on every supported GitLab version.
       if [ "$CI_PIPELINE_SOURCE" = "push" ] && [ -z "${CI_COMMIT_TAG:-}" ] \
         && [ -n "${CI_COMMIT_BEFORE_SHA:-}" ] \
         && [ "$CI_COMMIT_BEFORE_SHA" != "0000000000000000000000000000000000000000" ]; then
@@ -85,7 +88,23 @@ debug-apks:
     - bash scripts/ci/package-debug-apks.sh "$CI_COMMIT_REF_NAME" "$CI_COMMIT_SHA"
   artifacts:
     name: "wearmux-debug-${CI_COMMIT_REF_SLUG}-${CI_COMMIT_SHORT_SHA}"
-    expire_in: 30 days
+    expire_in: 7 days
     when: always
     paths:
       - apk-artifacts/
+
+codenap-release:
+  stage: release
+  timeout: 10 minutes
+  resource_group: codenap-releases
+  cache: []
+  dependencies: []
+  rules:
+    # The version tag starts releases on CodeNap and reaches GitHub by mirroring.
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
+    # Main can backfill an existing release via Run pipeline or a push option.
+    - if: '$CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $RELEASE_TAG'
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $RELEASE_TAG'
+    - when: never
+  script:
+    - python3 scripts/ci/release.py codenap --tag "${RELEASE_TAG:-$CI_COMMIT_TAG}"
