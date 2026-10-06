@@ -174,15 +174,14 @@ GitLab is the development build service; GitHub distributes signed releases. The
 | Platform | Trigger | Result |
 | --- | --- | --- |
 | GitLab `debug-apks` | Code or build changes pushed to any branch; **Run pipeline** for a selected ref | Phone and Wear OS debug APKs and checksums in job artifacts |
-| GitHub **Build debug APKs manually** | **Actions → Run workflow** for a selected branch or tag | Separate phone and Wear OS debug artifact downloads |
 | GitHub **Release APKs** | Version tag push; manual run with an existing tag | Signed phone and Wear OS APKs and checksums in a draft release |
 | GitLab `codenap-release` | Version tag push; explicit `RELEASE_TAG` backfill on `main` | CodeNap release notes and links to the signed GitHub downloads |
 
 Documentation-only pushes skip compilation. GitLab tag pushes do not build debug APKs automatically; a manual pipeline can still build a tag.
 
-Each branch uses its own CI configuration. Merge these CI changes from `main` into existing development branches so they also use the manual-only GitHub debug workflow.
+Each branch uses its own CI configuration. Merge these CI changes from `main` into existing development branches so they also build development APKs through GitLab and use GitHub for signed releases.
 
-Debug APK filenames include the branch and the first seven characters of the commit, for example `wearmux-phone-debug-main-a1b2c3d.apk`. The app's installed name and package ID stay the same. Debug artifacts are retained for 30 days. Signed release downloads use the version tag in their filenames and remain attached to the published GitHub release. The Git mirror copies source and tags. Each platform creates its own release page from the same repository release notes.
+Debug APK filenames include the branch and the first seven characters of the commit, for example `wearmux-phone-debug-main-a1b2c3d.apk`. The app's installed name and package ID stay the same. GitLab debug artifacts have a seven-day expiry; retention of the latest successful pipeline's artifacts depends on the project's artifact settings. Signed release downloads use the version tag in their filenames and remain attached to the published GitHub release. The Git mirror copies source and tags. Each platform creates its own release page from the same repository release notes.
 
 GitLab supports Linux x86_64 shell, Docker, and Kubernetes runners with **glibc 2.17 or newer**. The setup script reports and checks the host's glibc version, installs checksum-verified Temurin JDK 21 and Android SDK 36 under the job workspace, and caches them; no root access, `sudo`, or package installation is required during the job. Temurin runs on older glibc hosts than the JetBrains runtime used previously. Gradle requires Java 21 without a vendor restriction, so it uses the provided Temurin JDK instead of downloading JetBrains again. The new JDK cache directory is separate from the old one; no manual cache clearing is required.
 

@@ -50,7 +50,6 @@ debug-apks:
           - .gitlab-ci.yml
           - .gitattributes
           - .gitmodules
-          - .github/workflows/build-apks.yml
           - .github/workflows/release-apks.yml
       if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH'
     - when: never
@@ -68,7 +67,7 @@ debug-apks:
               *.md|*.pdf|LICENSE*|*/LICENSE*|NOTICE*|*/NOTICE*) continue ;;
             esac
             case "$path" in
-              app/*|wear/*|models/*|gradle/*|scripts/ci/*|.gitlab-ci.yml|.gitattributes|.gitmodules|.github/workflows/build-apks.yml|.github/workflows/release-apks.yml|gradle.properties|gradlew|gradlew.bat)
+              app/*|wear/*|models/*|gradle/*|scripts/ci/*|.gitlab-ci.yml|.gitattributes|.gitmodules|.github/workflows/release-apks.yml|gradle.properties|gradlew|gradlew.bat)
                 needs_build=true; break ;;
               */*) ;;
               *.gradle|*.gradle.kts) needs_build=true; break ;;

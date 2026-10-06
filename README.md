@@ -114,7 +114,7 @@ A Navisens developer key is optional and enables the trajectory view. Model setu
 
 Download versioned phone and Wear OS APKs from [GitHub Releases](https://github.com/nap-it/wearmux-android/releases), when published.
 
-For development builds, the [GitLab pipeline](.gitlab-ci.yml) builds debug APKs on all branches when app code, models, or build configuration changes. Download the GitLab job's artifacts; APK filenames include the branch and commit, for example `wearmux-phone-debug-main-a1b2c3d.apk` and `wearmux-wear-debug-main-a1b2c3d.apk`. The [GitHub debug workflow](.github/workflows/build-apks.yml) remains available for manual builds.
+For development builds, the [GitLab pipeline](.gitlab-ci.yml) builds debug APKs on all branches when app code, models, or build configuration changes. Download the GitLab job's artifacts; APK filenames include the branch and commit, for example `wearmux-phone-debug-main-a1b2c3d.apk` and `wearmux-wear-debug-main-a1b2c3d.apk`. To build a selected branch or tag on demand, use **Run pipeline** in GitLab.
 
 The [technical guide](docs/technical-guide.md) covers configuration, internal architecture, command-line control, server endpoints, MQTT, benchmarks, tests, and troubleshooting.
 
