@@ -69,6 +69,7 @@ object WearableServiceActions {
     const val ACTION_ATCLL_SET_ENDPOINT = "com.wearmux.android.ATCLL_ENDPOINT"
     const val ACTION_UNIFIED_SERVER_SET_URL = "com.wearmux.android.UNIFIED_SERVER_SET_URL"
     const val ACTION_MQTT_SET_CONFIG = "com.wearmux.android.MQTT_SET_CONFIG"
+    const val ACTION_IMUCOCO_SET_CONFIG = "com.wearmux.android.IMUCOCO_SET_CONFIG"
     const val ACTION_AUDIO_TEST_TONE = "com.wearmux.android.AUDIO_TEST_TONE"
     const val ACTION_AUDIO_TEST_STOP = "com.wearmux.android.AUDIO_TEST_STOP"
     const val ACTION_AUDIO_NOTIFY = "com.wearmux.android.AUDIO_NOTIFY"
@@ -111,4 +112,8 @@ object WearableServiceActions {
     const val EXTRA_MQTT_ENABLED = "mqtt_enabled"
     const val EXTRA_MQTT_BROKER_URL = "mqtt_broker_url"
     const val EXTRA_MQTT_TOPIC_PREFIX = "mqtt_topic_prefix"
+    const val EXTRA_IMUCOCO_ENABLED = "imucoco_enabled"
+    const val EXTRA_IMUCOCO_HOST = "imucoco_host"
+    const val EXTRA_IMUCOCO_PORT = "imucoco_port"
+    const val EXTRA_IMUCOCO_USER_ID = "imucoco_user_id"
 }

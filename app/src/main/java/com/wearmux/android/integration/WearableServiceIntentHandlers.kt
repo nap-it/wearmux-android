@@ -29,6 +29,10 @@ import com.wearmux.android.integration.WearableServiceActions.EXTRA_SSID
 import com.wearmux.android.integration.WearableServiceActions.EXTRA_TONE_DURATION_MS
 import com.wearmux.android.integration.WearableServiceActions.EXTRA_TONE_FREQ_HZ
 import com.wearmux.android.integration.WearableServiceActions.EXTRA_TONE_PRESET
+import com.wearmux.android.integration.WearableServiceActions.EXTRA_IMUCOCO_ENABLED
+import com.wearmux.android.integration.WearableServiceActions.EXTRA_IMUCOCO_HOST
+import com.wearmux.android.integration.WearableServiceActions.EXTRA_IMUCOCO_PORT
+import com.wearmux.android.integration.WearableServiceActions.EXTRA_IMUCOCO_USER_ID
 import com.wearmux.android.integration.WearableServiceActions.EXTRA_MQTT_BROKER_URL
 import com.wearmux.android.integration.WearableServiceActions.EXTRA_MQTT_ENABLED
 import com.wearmux.android.integration.WearableServiceActions.EXTRA_MQTT_TOPIC_PREFIX
@@ -384,5 +388,32 @@ internal fun WearableService.handleMqttSetConfig(intent: Intent) {
     WearableService.appendLog(
         if (next.isUsable) "MQTT: ${next.normalizedBrokerUrl()} (prefix ${next.topicPrefix})"
         else "MQTT: disabled"
+    )
+}
+
+internal fun WearableService.handleImuCoCoSetConfig(intent: Intent) {
+    val current = WearableService._imuCoCoConfig.value
+    val host = intent.getStringExtra(EXTRA_IMUCOCO_HOST)?.trim() ?: current.host
+    val port = if (intent.hasExtra(EXTRA_IMUCOCO_PORT)) {
+        intent.getIntExtra(EXTRA_IMUCOCO_PORT, current.port)
+    } else current.port
+    val userId = intent.getStringExtra(EXTRA_IMUCOCO_USER_ID)?.trim()?.takeIf { it.isNotBlank() }
+        ?: current.userId
+    val enabled = if (intent.hasExtra(EXTRA_IMUCOCO_ENABLED)) {
+        intent.getBooleanExtra(EXTRA_IMUCOCO_ENABLED, current.enabled)
+    } else {
+        current.enabled
+    }
+    val next = current.copy(enabled = enabled, host = host, port = port, userId = userId)
+    WearableService._imuCoCoConfig.value = next
+    getSharedPreferences(WearableService.ATCLL_PREFS, Context.MODE_PRIVATE).edit()
+        .putBoolean(WearableService.IMUCOCO_PREF_ENABLED, next.enabled)
+        .putString(WearableService.IMUCOCO_PREF_HOST, next.host)
+        .putInt(WearableService.IMUCOCO_PREF_PORT, next.port)
+        .putString(WearableService.IMUCOCO_PREF_USER_ID, next.userId)
+        .apply()
+    WearableService.appendLog(
+        if (next.isUsable) "IMUCoCo sink: ${next.host}:${next.port} (user ${next.effectiveUserId()})"
+        else "IMUCoCo sink: disabled"
     )
 }

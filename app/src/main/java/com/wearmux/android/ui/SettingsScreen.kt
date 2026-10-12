@@ -83,6 +83,13 @@ fun SettingsScreen(viewModel: AppViewModel, onOpenDiagnostics: () -> Unit, onBac
         if (mqttBrokerInput.isEmpty()) mqttBrokerInput = mqttConfig.brokerUrl
         if (mqttPrefixInput.isEmpty()) mqttPrefixInput = mqttConfig.topicPrefix
     }
+    val imuCoCoConfig by viewModel.imuCoCoConfig.collectAsStateWithLifecycle()
+    var imuCoCoHostInput by remember { mutableStateOf("") }
+    var imuCoCoPortInput by remember { mutableStateOf("") }
+    LaunchedEffect(imuCoCoConfig) {
+        if (imuCoCoHostInput.isEmpty()) imuCoCoHostInput = imuCoCoConfig.host
+        if (imuCoCoPortInput.isEmpty()) imuCoCoPortInput = imuCoCoConfig.port.toString()
+    }
     var ssid by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var glassesCameraResolutionInput by remember { mutableStateOf("480") }
@@ -253,6 +260,74 @@ fun SettingsScreen(viewModel: AppViewModel, onOpenDiagnostics: () -> Unit, onBac
                 style = MaterialTheme.typography.labelSmall,
                 color = Constants.secondaryTextColor,
             )
+        }
+
+        Text(
+            "IMUCoCo sink",
+            style = MaterialTheme.typography.labelMedium,
+            color = Constants.secondaryTextColor,
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(
+                "Stream phone+watch+glasses IMU to IMUCoCo",
+                color = Constants.primaryTextColor,
+                fontSize = 13.sp,
+                modifier = Modifier.weight(1f),
+            )
+            Switch(
+                checked = imuCoCoConfig.enabled,
+                onCheckedChange = { viewModel.imuCoCoSetConfig(enabled = it) },
+            )
+        }
+        OutlinedTextField(
+            value = imuCoCoHostInput,
+            onValueChange = { imuCoCoHostInput = it },
+            label = { Text("Server host", color = Constants.secondaryTextColor) },
+            placeholder = { Text("192.168.1.50", color = Constants.secondaryTextColor) },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = Constants.primaryTextColor,
+                unfocusedTextColor = Constants.primaryTextColor,
+                focusedBorderColor = Constants.accentColor,
+                unfocusedBorderColor = Constants.secondaryTextColor,
+            ),
+        )
+        OutlinedTextField(
+            value = imuCoCoPortInput,
+            onValueChange = { imuCoCoPortInput = it },
+            label = { Text("Port", color = Constants.secondaryTextColor) },
+            placeholder = {
+                Text(
+                    com.wearmux.android.integration.api.ImuCoCoSinkConfig.DEFAULT_PORT.toString(),
+                    color = Constants.secondaryTextColor,
+                )
+            },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = Constants.primaryTextColor,
+                unfocusedTextColor = Constants.primaryTextColor,
+                focusedBorderColor = Constants.accentColor,
+                unfocusedBorderColor = Constants.secondaryTextColor,
+            ),
+        )
+        Button(
+            onClick = {
+                viewModel.imuCoCoSetConfig(
+                    host = imuCoCoHostInput.trim(),
+                    port = imuCoCoPortInput.trim().toIntOrNull()
+                        ?: com.wearmux.android.integration.api.ImuCoCoSinkConfig.DEFAULT_PORT,
+                )
+            },
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(containerColor = Constants.accentColor),
+        ) {
+            Text("Save IMUCoCo host", color = Color.Black, fontSize = 13.sp)
         }
 
         // Painel Watch + Áudio em colapsável (igual a YOLO/STT) — primeira

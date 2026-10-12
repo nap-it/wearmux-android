@@ -154,6 +154,10 @@ class WearableService : Service(), LifecycleOwner {
         internal const val MQTT_PREF_ENABLED = "mqtt_enabled"
         internal const val MQTT_PREF_BROKER = "mqtt_broker_url"
         internal const val MQTT_PREF_TOPIC_PREFIX = "mqtt_topic_prefix"
+        internal const val IMUCOCO_PREF_ENABLED = "imucoco_enabled"
+        internal const val IMUCOCO_PREF_HOST = "imucoco_host"
+        internal const val IMUCOCO_PREF_PORT = "imucoco_port"
+        internal const val IMUCOCO_PREF_USER_ID = "imucoco_user_id"
 
         internal const val GLASSES_MIC_TRANSITION_TIMEOUT_MS = 3_000L
         enum class GlassesMicStreamState { IDLE, STARTING, STREAMING, STOPPING, ERROR }
@@ -295,6 +299,8 @@ class WearableService : Service(), LifecycleOwner {
         internal val _atcllEndpoint = MutableStateFlow<String?>(null); val atcllEndpoint: StateFlow<String?> = _atcllEndpoint
         internal val _unifiedServerUrl = MutableStateFlow(UNIFIED_SERVER_DEFAULT_URL); val unifiedServerUrl: StateFlow<String> = _unifiedServerUrl
         internal val _mqttConfig = MutableStateFlow(MqttConfig()); val mqttConfig: StateFlow<MqttConfig> = _mqttConfig
+        internal val _imuCoCoConfig = MutableStateFlow(com.wearmux.android.integration.api.ImuCoCoSinkConfig())
+        val imuCoCoConfig: StateFlow<com.wearmux.android.integration.api.ImuCoCoSinkConfig> = _imuCoCoConfig
 
         var instance: WearableService? = null
             private set

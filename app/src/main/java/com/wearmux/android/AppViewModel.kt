@@ -634,6 +634,20 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         topicPrefix?.let { putExtra(WearableServiceActions.EXTRA_MQTT_TOPIC_PREFIX, it) }
     }
 
+    val imuCoCoConfig: StateFlow<com.wearmux.android.integration.api.ImuCoCoSinkConfig> = WearableService.imuCoCoConfig
+
+    fun imuCoCoSetConfig(
+        enabled: Boolean? = null,
+        host: String? = null,
+        port: Int? = null,
+        userId: String? = null,
+    ) = sendAction(WearableServiceActions.ACTION_IMUCOCO_SET_CONFIG) {
+        enabled?.let { putExtra(WearableServiceActions.EXTRA_IMUCOCO_ENABLED, it) }
+        host?.let { putExtra(WearableServiceActions.EXTRA_IMUCOCO_HOST, it) }
+        port?.let { putExtra(WearableServiceActions.EXTRA_IMUCOCO_PORT, it) }
+        userId?.let { putExtra(WearableServiceActions.EXTRA_IMUCOCO_USER_ID, it) }
+    }
+
     fun safetySetUc2(enabled: Boolean) =
         sendAction(WearableServiceActions.ACTION_SAFETY_SET_UC2_ENABLED) {
             putExtra(WearableServiceActions.EXTRA_SAFETY_ENABLED, enabled)

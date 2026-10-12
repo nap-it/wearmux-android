@@ -5,6 +5,7 @@ import com.wearmux.android.integration.adapters.devices.brilliantsole.defaultBri
 import com.wearmux.android.integration.adapters.devices.omi.OmiGlassesWearableAdapter
 import com.wearmux.android.integration.adapters.devices.omi.defaultOmiGlassesClientFactory
 import com.wearmux.android.integration.api.AtcllClient
+import com.wearmux.android.integration.api.ImuCoCoSinkConfig
 import com.wearmux.android.integration.api.MqttConfig
 import com.wearmux.android.integration.api.WearMuxServerClassifier
 import com.wearmux.android.integration.hub.DefaultDeviceConnectionCoordinator
@@ -144,6 +145,7 @@ internal fun WearableService.bootstrapAtcllAndTelemetry(cloudPrefs: android.cont
     depthManager.setCloudUrl("$unifiedUrl/depth")
     WearableService.appendLog("🌐 Unified server: $unifiedUrl")
     restoreMqttConfig(cloudPrefs)
+    restoreImuCoCoConfig(cloudPrefs)
     telemetryReporter = com.wearmux.android.integration.consumer.TelemetryReporter(
         serviceScope, unifiedUrl, csvWriter = latencyCsvWriter, mqttPublish = mqttPublisher::publish,
     )
@@ -231,5 +233,18 @@ internal fun WearableService.restoreMqttConfig(cloudPrefs: android.content.Share
     WearableService._mqttConfig.value = MqttConfig(enabled = enabled, brokerUrl = broker, topicPrefix = prefix)
     if (enabled && broker.isNotBlank()) {
         WearableService.appendLog("MQTT enabled: $broker (prefix $prefix)")
+    }
+}
+
+/** Repõe as definições do sink IMUCoCo guardadas na sessão anterior. */
+internal fun WearableService.restoreImuCoCoConfig(cloudPrefs: android.content.SharedPreferences) {
+    val host = cloudPrefs.getString(WearableService.IMUCOCO_PREF_HOST, null).orEmpty()
+    val enabled = cloudPrefs.getBoolean(WearableService.IMUCOCO_PREF_ENABLED, false)
+    val port = cloudPrefs.getInt(WearableService.IMUCOCO_PREF_PORT, ImuCoCoSinkConfig.DEFAULT_PORT)
+    val userId = cloudPrefs.getString(WearableService.IMUCOCO_PREF_USER_ID, null)
+        ?.takeIf { it.isNotBlank() } ?: ImuCoCoSinkConfig.DEFAULT_USER_ID
+    WearableService._imuCoCoConfig.value = ImuCoCoSinkConfig(enabled = enabled, host = host, port = port, userId = userId)
+    if (enabled && host.isNotBlank()) {
+        WearableService.appendLog("IMUCoCo sink enabled: $host:$port (user $userId)")
     }
 }
