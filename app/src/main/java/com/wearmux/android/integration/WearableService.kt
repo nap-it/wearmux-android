@@ -171,6 +171,8 @@ class WearableService : Service(), LifecycleOwner {
         internal val _latestGlassesImu = MutableStateFlow<GlassesImuSample?>(null); val latestGlassesImu: StateFlow<GlassesImuSample?> = _latestGlassesImu
         internal val _glassesImuStream = MutableSharedFlow<GlassesImuSample>(replay = 0, extraBufferCapacity = 256, onBufferOverflow = BufferOverflow.DROP_OLDEST)
         val glassesImuStream: SharedFlow<GlassesImuSample> = _glassesImuStream
+        internal val _phoneImuStream = MutableSharedFlow<GlassesImuSample>(replay = 0, extraBufferCapacity = 256, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+        val phoneImuStream: SharedFlow<GlassesImuSample> = _phoneImuStream
         internal val _wristbandImuStream = MutableSharedFlow<com.wearmux.android.integration.protocol.WristbandImuSample>(replay = 0, extraBufferCapacity = 512, onBufferOverflow = BufferOverflow.DROP_OLDEST)
         val wristbandImuStream: SharedFlow<com.wearmux.android.integration.protocol.WristbandImuSample> = _wristbandImuStream
         internal val _latestGlassesQuaternion = MutableStateFlow<FloatArray?>(null); val latestGlassesQuaternion: StateFlow<FloatArray?> = _latestGlassesQuaternion
@@ -675,6 +677,7 @@ class WearableService : Service(), LifecycleOwner {
         routeImuOnly = { routeImuOnly }, waitingForAnchorFix = { waitingForAnchorFix },
         onAnchor = { lat, lon -> routeRecording.consumeAnchor(lat, lon) },
         uc1_4Enabled = { _safetyUc1_4Enabled.value },
+        phoneImuStream = _phoneImuStream,
     ).start()
 
     internal fun startCameraObservers() = com.wearmux.android.integration.modules.camera.CameraObserversWiring(

@@ -62,6 +62,10 @@ class PhoneSensorManager(private val context: Context) : SensorEventListener {
     private val gyroSensor: Sensor? =
         sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE)
 
+    // Magnetómetro (necessário para corrigir yaw/norte magnético no filtro de fusão)
+    private val magSensor: Sensor? =
+        sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
+
     // --- StateFlows observáveis ---
     private val _latestAccel = MutableStateFlow(PhoneAccelSample(0f, 0f, 0f, 0L))
     val latestAccel: StateFlow<PhoneAccelSample> = _latestAccel
@@ -71,6 +75,9 @@ class PhoneSensorManager(private val context: Context) : SensorEventListener {
 
     private val _latestGyro = MutableStateFlow(floatArrayOf(0f, 0f, 0f))
     val latestGyro: StateFlow<FloatArray> = _latestGyro
+
+    private val _latestMag = MutableStateFlow(floatArrayOf(0f, 0f, 0f))
+    val latestMag: StateFlow<FloatArray> = _latestMag
 
     private val _gpsActive = MutableStateFlow(false)
     val gpsActive: StateFlow<Boolean> = _gpsActive
@@ -82,6 +89,7 @@ class PhoneSensorManager(private val context: Context) : SensorEventListener {
     var onAccelSample: ((PhoneAccelSample) -> Unit)? = null
     var onGpsUpdate: ((PhoneGpsLocation) -> Unit)? = null
     var onGyroSample: ((FloatArray, Long) -> Unit)? = null
+    var onMagSample: ((FloatArray, Long) -> Unit)? = null
 
     private var locationCallback: LocationCallback? = null
 
@@ -98,6 +106,10 @@ class PhoneSensorManager(private val context: Context) : SensorEventListener {
         gyroSensor?.let {
             sensorManager.registerListener(this, it, ACCEL_SENSOR_DELAY)
         }
+
+        magSensor?.let {
+            sensorManager.registerListener(this, it, ACCEL_SENSOR_DELAY)
+        }
     }
 
     fun stopAccelerometer() {
@@ -107,20 +119,33 @@ class PhoneSensorManager(private val context: Context) : SensorEventListener {
     }
 
     override fun onSensorChanged(event: SensorEvent) {
-        when (event.sensor.type) {
+        handleSensorEvent(event.sensor.type, event.values, event.timestamp)
+    }
+
+    /**
+     * Lógica de `onSensorChanged` isolada do `SensorEvent` da framework
+     * Android (classe final, sem construtor acessível em testes unitários),
+     * para ser testável sem Robolectric.
+     */
+    internal fun handleSensorEvent(type: Int, values: FloatArray, timestampNs: Long) {
+        when (type) {
             Sensor.TYPE_LINEAR_ACCELERATION -> {
                 val sample = PhoneAccelSample(
-                    x = event.values[0],
-                    y = event.values[1],
-                    z = event.values[2],
-                    timestampNs = event.timestamp
+                    x = values[0],
+                    y = values[1],
+                    z = values[2],
+                    timestampNs = timestampNs
                 )
                 _latestAccel.value = sample
                 onAccelSample?.invoke(sample)
             }
             Sensor.TYPE_GYROSCOPE -> {
-                _latestGyro.value = event.values.copyOf()
-                onGyroSample?.invoke(event.values.copyOf(), event.timestamp)
+                _latestGyro.value = values.copyOf()
+                onGyroSample?.invoke(values.copyOf(), timestampNs)
+            }
+            Sensor.TYPE_MAGNETIC_FIELD -> {
+                _latestMag.value = values.copyOf()
+                onMagSample?.invoke(values.copyOf(), timestampNs)
             }
         }
     }

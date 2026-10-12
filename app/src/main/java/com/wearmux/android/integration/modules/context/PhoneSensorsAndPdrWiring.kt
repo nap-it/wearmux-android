@@ -8,11 +8,13 @@ import com.wearmux.android.integration.modules.context.PedestrianDeadReckoning
 import com.wearmux.android.integration.modules.context.RouteManager
 import com.wearmux.android.integration.modules.context.SavedRoute
 import com.wearmux.android.integration.modules.sensors.CoAxialImuFusion
+import com.wearmux.android.integration.protocol.GlassesImuSample
 import com.wearmux.android.integration.safety.CyclistModeDetector
 import com.wearmux.android.integration.safety.haversineMeters
 import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -45,14 +47,35 @@ class PhoneSensorsAndPdrWiring(
     private val waitingForAnchorFix: () -> Boolean,
     private val onAnchor: (Double, Double) -> Unit,
     private val uc1_4Enabled: () -> Boolean,
+    private val phoneImuStream: MutableSharedFlow<GlassesImuSample>,
 ) {
+    @Volatile private var lastAccel: PhoneAccelSample? = null
+    @Volatile private var lastGyro: FloatArray? = null
+
     fun start() {
         phoneSensors.onAccelSample = { sample ->
+            lastAccel = sample
             phoneAccel.value = sample
             pdr.onAccelerometer(sample)
             coAxialImuFusion.feedPhoneAccel(sample.x, sample.y, sample.z)
         }
-        phoneSensors.onGyroSample = { values, ts -> pdr.onGyroscope(values[2], ts) }
+        phoneSensors.onGyroSample = { values, ts ->
+            lastGyro = values
+            pdr.onGyroscope(values[2], ts)
+        }
+        phoneSensors.onMagSample = { mag, _ ->
+            val accel = lastAccel
+            val gyro = lastGyro
+            if (accel != null && gyro != null) {
+                phoneImuStream.tryEmit(
+                    GlassesImuSample(
+                        ax = accel.x, ay = accel.y, az = accel.z,
+                        gx = gyro[0], gy = gyro[1], gz = gyro[2],
+                        mx = mag[0], my = mag[1], mz = mag[2],
+                    )
+                )
+            }
+        }
         phoneSensors.onGpsUpdate = { gps ->
             phoneGps.value = gps
             if (!routeImuOnly()) {

@@ -1,0 +1,95 @@
+package com.wearmux.android.integration.modules.context
+
+import android.content.Context
+import android.hardware.SensorManager
+import com.wearmux.android.integration.modules.android.PhoneAccelSample
+import com.wearmux.android.integration.modules.android.PhoneGpsLocation
+import com.wearmux.android.integration.modules.android.PhoneSensorManager
+import com.wearmux.android.integration.modules.sensors.CoAxialImuFusion
+import com.wearmux.android.integration.protocol.GlassesImuSample
+import com.wearmux.android.integration.protocol.ImuSample
+import com.wearmux.android.integration.safety.CyclistModeDetector
+import io.mockk.every
+import io.mockk.mockk
+import java.util.concurrent.atomic.AtomicLong
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.yield
+import org.junit.Assert.assertEquals
+import org.junit.Test
+
+class PhoneSensorsAndPdrWiringTest {
+
+    private fun fakeContext(): Context {
+        val sensorManager = mockk<SensorManager>(relaxed = true)
+        every { sensorManager.getDefaultSensor(any()) } returns null
+        val context = mockk<Context>(relaxed = true)
+        every { context.getSystemService(Context.SENSOR_SERVICE) } returns sensorManager
+        return context
+    }
+
+    @Test
+    fun `mag sample emits combined accel-gyro-mag sample to phoneImuStream`() {
+        // Dispatchers.Unconfined, not kotlinx-coroutines-test: start() launches
+        // long-lived `while(true) { ... delay(1_000) }` loops (the UC1.4 poller)
+        // that a virtual-time test scheduler would try to drive to completion,
+        // hanging or throwing. Unconfined lets the synchronous tryEmit below
+        // reach the collector immediately via plain runBlocking + yield, the
+        // same pattern CoAxialImuFusionTest uses.
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+        val phoneSensors = PhoneSensorManager(fakeContext())
+        val phoneImuStream = MutableSharedFlow<GlassesImuSample>(
+            replay = 0, extraBufferCapacity = 16, onBufferOverflow = BufferOverflow.DROP_OLDEST,
+        )
+        val captured = mutableListOf<GlassesImuSample>()
+        val collector = scope.launch { phoneImuStream.collect { captured.add(it) } }
+
+        val wiring = PhoneSensorsAndPdrWiring(
+            scope = scope,
+            phoneSensors = phoneSensors,
+            pdr = mockk(relaxed = true),
+            routeManager = mockk(relaxed = true),
+            cyclistDetector = mockk(relaxed = true),
+            coAxialImuFusion = CoAxialImuFusion(scope),
+            phoneAccel = MutableStateFlow(null),
+            phoneGps = MutableStateFlow(null),
+            pdrPosition = MutableStateFlow(null),
+            pdrStepCount = MutableStateFlow(0),
+            savedRoutes = MutableStateFlow(emptyList()),
+            activeRoute = MutableStateFlow(null),
+            routeRecording = MutableStateFlow(false),
+            routeRecordingWaypointCount = MutableStateFlow(0),
+            routeRecordingWaypoints = MutableStateFlow(emptyList()),
+            latestImuSamples = MutableStateFlow(emptyList<ImuSample>()),
+            cyclistMode = MutableStateFlow(CyclistModeDetector.Mode.UNKNOWN),
+            imuSampleTotalCounter = AtomicLong(0),
+            routeImuOnly = { false },
+            waitingForAnchorFix = { false },
+            onAnchor = { _, _ -> },
+            uc1_4Enabled = { false },
+            phoneImuStream = phoneImuStream,
+        )
+        wiring.start()
+
+        phoneSensors.onAccelSample?.invoke(PhoneAccelSample(1f, 2f, 3f, 0L))
+        phoneSensors.onGyroSample?.invoke(floatArrayOf(0.1f, 0.2f, 0.3f), 0L)
+        phoneSensors.onMagSample?.invoke(floatArrayOf(10f, 20f, 30f), 0L)
+
+        runBlocking { yield() } // let the Unconfined collector coroutine deliver the emission
+
+        collector.cancel()
+        scope.cancel()
+
+        assertEquals(1, captured.size)
+        val sample = captured[0]
+        assertEquals(1f, sample.ax, 0.001f); assertEquals(2f, sample.ay, 0.001f); assertEquals(3f, sample.az, 0.001f)
+        assertEquals(10f, sample.mx, 0.001f); assertEquals(20f, sample.my, 0.001f); assertEquals(30f, sample.mz, 0.001f)
+    }
+}
