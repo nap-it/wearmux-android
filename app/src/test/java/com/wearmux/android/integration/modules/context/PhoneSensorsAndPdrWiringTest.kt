@@ -15,13 +15,12 @@ import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.yield
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -37,13 +36,15 @@ class PhoneSensorsAndPdrWiringTest {
 
     @Test
     fun `mag sample emits combined accel-gyro-mag sample to phoneImuStream`() {
-        // Dispatchers.Unconfined, not kotlinx-coroutines-test: start() launches
-        // long-lived `while(true) { ... delay(1_000) }` loops (the UC1.4 poller)
-        // that a virtual-time test scheduler would try to drive to completion,
-        // hanging or throwing. Unconfined lets the synchronous tryEmit below
-        // reach the collector immediately via plain runBlocking + yield, the
-        // same pattern CoAxialImuFusionTest uses.
-        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+        // Plain Dispatchers.Unconfined (not kotlinx-coroutines-test): start()
+        // launches a long-lived `while(true) { ... delay(1_000) }` loop (the
+        // UC1.4 poller) that a virtual-time test scheduler would try to drive
+        // to completion, hanging or throwing. cancelAndJoin() (not plain
+        // cancel(), which is fire-and-forget) waits for that loop to actually
+        // finish unwinding before this test returns, so it can't throw during
+        // the NEXT test's runTest in the full suite.
+        val job = SupervisorJob()
+        val scope = CoroutineScope(job + Dispatchers.Unconfined)
         val phoneSensors = PhoneSensorManager(fakeContext())
         val phoneImuStream = MutableSharedFlow<GlassesImuSample>(
             replay = 0, extraBufferCapacity = 16, onBufferOverflow = BufferOverflow.DROP_OLDEST,
@@ -51,11 +52,17 @@ class PhoneSensorsAndPdrWiringTest {
         val captured = mutableListOf<GlassesImuSample>()
         val collector = scope.launch { phoneImuStream.collect { captured.add(it) } }
 
+        // Real instances, not mockk(relaxed = true): start() calls .collect()
+        // on pdr.position/stepCount and routeManager.routes/activeRoute/
+        // isRecording/recordingWaypoints, which are real StateFlows. MockK's
+        // relaxed mode fabricates a StateFlow-shaped mock whose collect()
+        // does not behave like a real StateFlow collector under Unconfined,
+        // which is what produced the KotlinNothingValueException chain.
         val wiring = PhoneSensorsAndPdrWiring(
             scope = scope,
             phoneSensors = phoneSensors,
-            pdr = mockk(relaxed = true),
-            routeManager = mockk(relaxed = true),
+            pdr = PedestrianDeadReckoning(),
+            routeManager = RouteManager(fakeContext()),
             cyclistDetector = mockk(relaxed = true),
             coAxialImuFusion = CoAxialImuFusion(scope),
             phoneAccel = MutableStateFlow(null),
@@ -82,10 +89,12 @@ class PhoneSensorsAndPdrWiringTest {
         phoneSensors.onGyroSample?.invoke(floatArrayOf(0.1f, 0.2f, 0.3f), 0L)
         phoneSensors.onMagSample?.invoke(floatArrayOf(10f, 20f, 30f), 0L)
 
-        runBlocking { yield() } // let the Unconfined collector coroutine deliver the emission
-
-        collector.cancel()
-        scope.cancel()
+        // Dispatchers.Unconfined runs the collector synchronously on each
+        // tryEmit above, so no advance/yield is needed before asserting.
+        // cancelAndJoin (not cancel()) waits for every launched coroutine,
+        // including the UC1.4 poller loop, to actually finish unwinding
+        // before this test method returns.
+        runBlocking { job.cancelAndJoin() }
 
         assertEquals(1, captured.size)
         val sample = captured[0]

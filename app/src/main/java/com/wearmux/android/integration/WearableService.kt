@@ -520,6 +520,16 @@ class WearableService : Service(), LifecycleOwner {
             scope = serviceScope, config = { _mqttConfig.value }, onLog = ::appendLog,
         )
     }
+    /** Sink UDP para o IMUCoCo: streams não-fundidos por dispositivo, nunca o CoAxialImuFusion. */
+    internal val imuCoCoSink by lazy {
+        com.wearmux.android.integration.modules.sensors.ImuUdpTriStreamSink(
+            scope = serviceScope,
+            config = { _imuCoCoConfig.value },
+            glassesImuStream = glassesImuStream,
+            watchImuStream = watchImuStream,
+            phoneImuStream = phoneImuStream,
+        )
+    }
     internal val cloudKwsForwarder by lazy {
         com.wearmux.android.integration.api.CloudKwsForwarder(
             serviceScope,
@@ -628,7 +638,7 @@ class WearableService : Service(), LifecycleOwner {
         timeSyncManager = TimeSyncManager(); cloudLatencyReporter = CloudLatencyReporter()
         appendLog("☁ IMU host-inference reporter active")
 
-        wireCoAxialFusion(); bootstrapWatchClient(); bootstrapCrossingZones(); bootstrapSafety()
+        wireCoAxialFusion(); imuCoCoSink.start(); bootstrapWatchClient(); bootstrapCrossingZones(); bootstrapSafety()
         connectKwsInternal()
         serviceScope.launch { safetyToggles.uc1.collect { _safetyUc1Enabled.value = it } }
         serviceScope.launch { safetyToggles.uc3.collect { _safetyUc3Enabled.value = it } }
