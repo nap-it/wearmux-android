@@ -8,7 +8,7 @@ import com.wearmux.android.integration.modules.context.PedestrianDeadReckoning
 import com.wearmux.android.integration.modules.context.RouteManager
 import com.wearmux.android.integration.modules.context.SavedRoute
 import com.wearmux.android.integration.modules.sensors.CoAxialImuFusion
-import com.wearmux.android.integration.protocol.GlassesImuSample
+import com.wearmux.android.integration.protocol.PhoneFusedImuSample
 import com.wearmux.android.integration.safety.CyclistModeDetector
 import com.wearmux.android.integration.safety.haversineMeters
 import java.util.concurrent.atomic.AtomicLong
@@ -47,7 +47,7 @@ class PhoneSensorsAndPdrWiring(
     private val waitingForAnchorFix: () -> Boolean,
     private val onAnchor: (Double, Double) -> Unit,
     private val uc1_4Enabled: () -> Boolean,
-    private val phoneImuStream: MutableSharedFlow<GlassesImuSample>,
+    private val phoneImuStream: MutableSharedFlow<PhoneFusedImuSample>,
 ) {
     @Volatile private var lastAccel: PhoneAccelSample? = null
     @Volatile private var lastGyro: FloatArray? = null
@@ -63,15 +63,13 @@ class PhoneSensorsAndPdrWiring(
             lastGyro = values
             pdr.onGyroscope(values[2], ts)
         }
-        phoneSensors.onMagSample = { mag, _ ->
+        phoneSensors.onGameRotationSample = { quat, _ ->
             val accel = lastAccel
-            val gyro = lastGyro
-            if (accel != null && gyro != null) {
+            if (accel != null) {
                 phoneImuStream.tryEmit(
-                    GlassesImuSample(
+                    PhoneFusedImuSample(
                         ax = accel.x, ay = accel.y, az = accel.z,
-                        gx = gyro[0], gy = gyro[1], gz = gyro[2],
-                        mx = mag[0], my = mag[1], mz = mag[2],
+                        qx = quat[0], qy = quat[1], qz = quat[2], qw = quat[3],
                     )
                 )
             }

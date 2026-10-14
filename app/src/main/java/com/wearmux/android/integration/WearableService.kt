@@ -52,6 +52,7 @@ import com.wearmux.android.integration.modules.wearos.WatchClient
 import com.wearmux.android.integration.observation.Timestamper
 import com.wearmux.android.integration.protocol.GlassesImuSample
 import com.wearmux.android.integration.protocol.ImuSample
+import com.wearmux.android.integration.protocol.PhoneFusedImuSample
 import com.wearmux.android.integration.safety.AtcllSafetyAlerts
 import com.wearmux.android.integration.safety.CrossingIntentionEvaluator
 import com.wearmux.android.integration.safety.CrossingValidationDecision
@@ -175,8 +176,8 @@ class WearableService : Service(), LifecycleOwner {
         internal val _latestGlassesImu = MutableStateFlow<GlassesImuSample?>(null); val latestGlassesImu: StateFlow<GlassesImuSample?> = _latestGlassesImu
         internal val _glassesImuStream = MutableSharedFlow<GlassesImuSample>(replay = 0, extraBufferCapacity = 256, onBufferOverflow = BufferOverflow.DROP_OLDEST)
         val glassesImuStream: SharedFlow<GlassesImuSample> = _glassesImuStream
-        internal val _phoneImuStream = MutableSharedFlow<GlassesImuSample>(replay = 0, extraBufferCapacity = 256, onBufferOverflow = BufferOverflow.DROP_OLDEST)
-        val phoneImuStream: SharedFlow<GlassesImuSample> = _phoneImuStream
+        internal val _phoneImuStream = MutableSharedFlow<PhoneFusedImuSample>(replay = 0, extraBufferCapacity = 256, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+        val phoneImuStream: SharedFlow<PhoneFusedImuSample> = _phoneImuStream
         internal val _wristbandImuStream = MutableSharedFlow<com.wearmux.android.integration.protocol.WristbandImuSample>(replay = 0, extraBufferCapacity = 512, onBufferOverflow = BufferOverflow.DROP_OLDEST)
         val wristbandImuStream: SharedFlow<com.wearmux.android.integration.protocol.WristbandImuSample> = _wristbandImuStream
         internal val _latestGlassesQuaternion = MutableStateFlow<FloatArray?>(null); val latestGlassesQuaternion: StateFlow<FloatArray?> = _latestGlassesQuaternion

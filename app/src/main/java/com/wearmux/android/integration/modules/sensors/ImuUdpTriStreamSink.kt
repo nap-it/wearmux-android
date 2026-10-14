@@ -3,6 +3,7 @@ package com.wearmux.android.integration.modules.sensors
 import com.wearmux.android.integration.api.ImuCoCoSinkConfig
 import com.wearmux.android.integration.protocol.GlassesImuSample
 import com.wearmux.android.integration.protocol.ImuSample
+import com.wearmux.android.integration.protocol.PhoneFusedImuSample
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetAddress
@@ -41,17 +42,19 @@ class ImuUdpTriStreamSink(
     private val config: () -> ImuCoCoSinkConfig,
     glassesImuStream: SharedFlow<GlassesImuSample>,
     watchImuStream: SharedFlow<ImuSample>,
-    phoneImuStream: SharedFlow<GlassesImuSample>,
+    phoneImuStream: SharedFlow<PhoneFusedImuSample>,
     private val transport: ImuUdpTransport = DatagramImuUdpTransport(),
     private val outputHz: Int = 50,
+    private val isGlassesActive: () -> Boolean = { true },
+    private val isWatchActive: () -> Boolean = { true },
+    private val isPhoneActive: () -> Boolean = { true },
 ) {
     @Volatile private var latestGlasses: GlassesImuSample? = null
     @Volatile private var latestWatch: ImuSample? = null
-    @Volatile private var latestPhone: GlassesImuSample? = null
+    @Volatile private var latestPhone: PhoneFusedImuSample? = null
 
     private val glassesFilter = MadgwickAhrs(sampleFreqHz = outputHz.toFloat())
     private val watchFilter = MadgwickAhrs(sampleFreqHz = outputHz.toFloat())
-    private val phoneFilter = MadgwickAhrs(sampleFreqHz = outputHz.toFloat())
 
     private val glassesImuStream = glassesImuStream
     private val watchImuStream = watchImuStream
@@ -84,11 +87,15 @@ class ImuUdpTriStreamSink(
         val cfg = config()
         if (!cfg.isUsable) return
 
+        if (!isGlassesActive()) latestGlasses = null
+        if (!isPhoneActive()) latestPhone = null
+        if (!isWatchActive()) latestWatch = null
+
         latestGlasses?.let {
             sendDevice(cfg, "glasses", glassesFilter, it.ax, it.ay, it.az, degToRad(it.gx), degToRad(it.gy), degToRad(it.gz), it.mx, it.my, it.mz)
         }
         latestPhone?.let {
-            sendDevice(cfg, "phone", phoneFilter, it.ax, it.ay, it.az, degToRad(it.gx), degToRad(it.gy), degToRad(it.gz), it.mx, it.my, it.mz)
+            sendPhoneDevice(cfg, it)
         }
         latestWatch?.let { w ->
             // Raw watch units: mg, mdps, uT*10 -> SI (same conversion as CoAxialImuFusion.toSiSnap).
@@ -128,6 +135,23 @@ class ImuUdpTriStreamSink(
             "$gxRad $gyRad $gzRad " +
             "${quat[0]} ${quat[1]} ${quat[2]} ${quat[3]}"
         val message = "${cfg.effectiveUserId()};$deviceType;motion:$sample"
+
+        try {
+            transport.send(cfg.host, cfg.port, message.toByteArray(Charsets.US_ASCII))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            // Network hiccup: drop this tick's packet, keep the pump running.
+        }
+    }
+
+    private fun sendPhoneDevice(cfg: ImuCoCoSinkConfig, sample: PhoneFusedImuSample) {
+        val timestamp = System.currentTimeMillis()
+        val wireSample = "$timestamp ${sample.ax} ${sample.ay} ${sample.az} " +
+            "0.0 0.0 0.0 " +   // gravity: zero-filled, IMUCoCo's parser never reads this field
+            "0.0 0.0 0.0 " +   // gyro: zero-filled, IMUCoCo's parser never reads this field
+            "${sample.qx} ${sample.qy} ${sample.qz} ${sample.qw}"
+        val message = "${cfg.effectiveUserId()};phone;motion:$wireSample"
 
         try {
             transport.send(cfg.host, cfg.port, message.toByteArray(Charsets.US_ASCII))
