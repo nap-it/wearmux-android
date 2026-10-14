@@ -66,6 +66,10 @@ class PhoneSensorManager(private val context: Context) : SensorEventListener {
     private val magSensor: Sensor? =
         sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
 
+    // Orientação relativa já fundida pelo Android (sem norte magnético) — substitui o Madgwick próprio.
+    private val gameRotationSensor: Sensor? =
+        sensorManager.getDefaultSensor(Sensor.TYPE_GAME_ROTATION_VECTOR)
+
     // --- StateFlows observáveis ---
     private val _latestAccel = MutableStateFlow(PhoneAccelSample(0f, 0f, 0f, 0L))
     val latestAccel: StateFlow<PhoneAccelSample> = _latestAccel
@@ -79,6 +83,9 @@ class PhoneSensorManager(private val context: Context) : SensorEventListener {
     private val _latestMag = MutableStateFlow(floatArrayOf(0f, 0f, 0f))
     val latestMag: StateFlow<FloatArray> = _latestMag
 
+    private val _latestGameRotation = MutableStateFlow(floatArrayOf(0f, 0f, 0f, 1f))
+    val latestGameRotation: StateFlow<FloatArray> = _latestGameRotation
+
     private val _gpsActive = MutableStateFlow(false)
     val gpsActive: StateFlow<Boolean> = _gpsActive
 
@@ -90,6 +97,7 @@ class PhoneSensorManager(private val context: Context) : SensorEventListener {
     var onGpsUpdate: ((PhoneGpsLocation) -> Unit)? = null
     var onGyroSample: ((FloatArray, Long) -> Unit)? = null
     var onMagSample: ((FloatArray, Long) -> Unit)? = null
+    var onGameRotationSample: ((FloatArray, Long) -> Unit)? = null
 
     private var locationCallback: LocationCallback? = null
 
@@ -110,6 +118,10 @@ class PhoneSensorManager(private val context: Context) : SensorEventListener {
         magSensor?.let {
             sensorManager.registerListener(this, it, ACCEL_SENSOR_DELAY)
         }
+
+        gameRotationSensor?.let {
+            sensorManager.registerListener(this, it, ACCEL_SENSOR_DELAY)
+        } ?: Log.w(TAG, "GAME_ROTATION_VECTOR sensor not available")
     }
 
     fun stopAccelerometer() {
@@ -146,6 +158,10 @@ class PhoneSensorManager(private val context: Context) : SensorEventListener {
             Sensor.TYPE_MAGNETIC_FIELD -> {
                 _latestMag.value = values.copyOf()
                 onMagSample?.invoke(values.copyOf(), timestampNs)
+            }
+            Sensor.TYPE_GAME_ROTATION_VECTOR -> {
+                _latestGameRotation.value = values.copyOf()
+                onGameRotationSample?.invoke(values.copyOf(), timestampNs)
             }
         }
     }
