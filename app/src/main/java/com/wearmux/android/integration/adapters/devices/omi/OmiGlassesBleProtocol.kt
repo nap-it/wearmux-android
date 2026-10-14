@@ -23,6 +23,7 @@ internal const val SENSOR_TYPE_ACCELERATION = 1
 internal const val SENSOR_TYPE_GYROSCOPE = 4
 internal const val SENSOR_TYPE_MAGNETOMETER = 5
 internal const val SENSOR_TYPE_GAME_ROTATION = 6
+internal const val SENSOR_TYPE_LINEAR_ACCELERATION = 3
 
 // Throttle do IMU só-orientação dos óculos.
 internal const val IMU_FORWARD_MIN_INTERVAL_MS = 20L
