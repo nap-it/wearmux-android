@@ -540,6 +540,10 @@ class WearableService : Service(), LifecycleOwner {
             watchImuStream = watchImuStream,
             phoneImuStream = phoneImuStream,
             wristbandImuStream = wristbandFusedImuStream,
+            isGlassesActive = { _glassesState.value.isOnlineBle() },
+            isWatchActive = { _watchState.value == com.wearmux.android.integration.modules.wearos.WatchClient.State.STREAMING },
+            isPhoneActive = { _phoneSensorsActive.value },
+            isWristbandActive = { _wristbandState.value.isOnlineBle() },
         )
     }
     internal val cloudKwsForwarder by lazy {

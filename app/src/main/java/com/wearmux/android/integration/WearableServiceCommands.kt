@@ -42,7 +42,10 @@ internal fun WearableService.updateWristbandTrafficProfile(reason: String) {
     val targetRate = desiredWristbandSensorRateMs()
     if (wristbandSensorRateAppliedMs == targetRate) return
     val includeMagnetometer = SensorRatePolicy.includeMagnetometer(WearableService._mlProcessingLocation.value)
-    wristbandBleClient.setSensorsConfig(targetRate, includeMagnetometer, includePressure = false, includeGameRotation = false)
+    wristbandBleClient.setSensorsConfig(
+        targetRate, includeMagnetometer, includePressure = false,
+        includeLinearAcceleration = true, includeGameRotation = true,
+    )
     wristbandSensorRateAppliedMs = targetRate
     WearableService.appendLog("BS sensors: imu=${targetRate}ms, mag=$includeMagnetometer ($reason)")
 }

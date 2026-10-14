@@ -11,7 +11,7 @@ class WristbandFusedImuSampleTest {
             timestampRaw16 = 0,
             blocks = listOf(
                 3 to shortArrayOf(100, 200, 300),           // SENSOR_TYPE_LINEAR_ACCELERATION, raw int16 LE x,y,z
-                6 to shortArrayOf(1000, 2000, 3000, 16000), // SENSOR_TYPE_GAME_ROTATION, raw int16 LE x,y,z,w
+                6 to shortArrayOf(1638, 3277, 4915, 14746), // SENSOR_TYPE_GAME_ROTATION, raw int16 LE x,y,z,w (Q-point /16384)
             ),
         )
 
@@ -20,8 +20,9 @@ class WristbandFusedImuSampleTest {
         assertNotNull(result?.fused)
         val sample = result!!.fused!!
         assertEquals(100.toShort(), sample.ax); assertEquals(200.toShort(), sample.ay); assertEquals(300.toShort(), sample.az)
-        assertEquals(1000.toShort(), sample.qx); assertEquals(2000.toShort(), sample.qy)
-        assertEquals(3000.toShort(), sample.qz); assertEquals(16000.toShort(), sample.qw)
+        // Scaled by the BNO085 Q-point convention (/16384), confirmed against real hardware in Task 8.
+        assertEquals(0.1f, sample.qx, 0.001f); assertEquals(0.2f, sample.qy, 0.001f)
+        assertEquals(0.3f, sample.qz, 0.001f); assertEquals(0.9f, sample.qw, 0.001f)
     }
 
     @Test

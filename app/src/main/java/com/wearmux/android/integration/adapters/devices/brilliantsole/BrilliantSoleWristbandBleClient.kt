@@ -626,10 +626,12 @@ class BrilliantSoleWristbandBleClient(private val context: Context) : BrilliantS
                                     lastQz = readInt16LE(data, offset + 4)
                                     lastQw = readInt16LE(data, offset + 6)
                                     if (hasLinAcc) {
+                                        val scale = com.wearmux.android.integration.protocol.WRISTBAND_QUATERNION_SCALE
                                         onWristbandFusedSample?.invoke(
                                             com.wearmux.android.integration.protocol.WristbandFusedImuSample(
                                                 ax = lastLinAccX, ay = lastLinAccY, az = lastLinAccZ,
-                                                qx = lastQx, qy = lastQy, qz = lastQz, qw = lastQw,
+                                                qx = lastQx * scale, qy = lastQy * scale,
+                                                qz = lastQz * scale, qw = lastQw * scale,
                                             )
                                         )
                                     }
@@ -812,7 +814,7 @@ class BrilliantSoleWristbandBleClient(private val context: Context) : BrilliantS
 
         Log.d(
             TAG,
-            "Sensor stream request: rate=${rateMs}ms linAcc=$includeLinearAcceleration mag=$includeMagnetometer pressure=$includePressure"
+            "Sensor stream request: rate=${rateMs}ms linAcc=$includeLinearAcceleration mag=$includeMagnetometer pressure=$includePressure gameRotation=$includeGameRotation"
         )
     }
 

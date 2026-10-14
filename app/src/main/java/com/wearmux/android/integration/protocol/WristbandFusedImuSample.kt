@@ -4,15 +4,23 @@ package com.wearmux.android.integration.protocol
  * One fused IMU sample from the wristband (BrilliantSole), already processed
  * by the device's own on-board sensor fusion -- no Madgwick on the Android side.
  *
- * Values are raw int16 straight off the wire, same convention [ImuSample]
+ * [ax, ay, az] are raw int16 straight off the wire, same convention [ImuSample]
  * already uses for accel/gyro/mag on this device -- no fixed-point scale is
- * applied here (unlike the glasses' BNO085 Q-point convention), since this
- * device never stores or applies the MSG_GET_SENSOR_SCALARS response either.
+ * applied, since this device never stores or applies the MSG_GET_SENSOR_SCALARS
+ * response either.
+ *
+ * [qx, qy, qz, qw] are scaled by the BNO085 Q-point convention (/16384), confirmed
+ * against real hardware during Task 8's validation: this chip uses the same
+ * fixed-point convention as the glasses' BNO085, contrary to this task's original
+ * (wrong) assumption that no scale applied here.
  */
 data class WristbandFusedImuSample(
     val ax: Short, val ay: Short, val az: Short,
-    val qx: Short, val qy: Short, val qz: Short, val qw: Short,
+    val qx: Float, val qy: Float, val qz: Float, val qw: Float,
 )
+
+/** Same Q-point scale the glasses' BNO085 already applies to its GAME_ROTATION samples. */
+const val WRISTBAND_QUATERNION_SCALE = 1f / 16384f
 
 /** Result of parsing one MSG_SENSOR_DATA packet for the linearAcceleration+gameRotation pair. */
 data class WristbandFusedParseResult(val fused: WristbandFusedImuSample?)
@@ -69,9 +77,11 @@ fun parseWristbandSensorData(data: ByteArray): WristbandFusedParseResult? {
     }
 
     val fused = if (linAccel != null && gameRotation != null) {
+        val scale = WRISTBAND_QUATERNION_SCALE
         WristbandFusedImuSample(
             ax = linAccel.first, ay = linAccel.second, az = linAccel.third,
-            qx = gameRotation[0], qy = gameRotation[1], qz = gameRotation[2], qw = gameRotation[3],
+            qx = gameRotation[0] * scale, qy = gameRotation[1] * scale,
+            qz = gameRotation[2] * scale, qw = gameRotation[3] * scale,
         )
     } else null
 

@@ -295,7 +295,7 @@ class ImuUdpTriStreamSinkTest {
         wristbandStream.emit(
             WristbandFusedImuSample(
                 ax = 1, ay = 2, az = 3,
-                qx = 1638, qy = 3277, qz = 4915, qw = 14746,
+                qx = 0.1f, qy = 0.2f, qz = 0.3f, qw = 0.9f,
             ),
         )
         testScheduler.advanceTimeBy(25)
@@ -311,9 +311,9 @@ class ImuUdpTriStreamSinkTest {
         assertEquals(3f, fields[3].toFloat(), 0.0001f)
         assertEquals(0f, fields[4].toFloat(), 0.0001f); assertEquals(0f, fields[5].toFloat(), 0.0001f); assertEquals(0f, fields[6].toFloat(), 0.0001f)
         assertEquals(0f, fields[7].toFloat(), 0.0001f); assertEquals(0f, fields[8].toFloat(), 0.0001f); assertEquals(0f, fields[9].toFloat(), 0.0001f)
-        assertEquals(1638f, fields[10].toFloat(), 0.0001f)
-        assertEquals(3277f, fields[11].toFloat(), 0.0001f)
-        assertEquals(4915f, fields[12].toFloat(), 0.0001f)
-        assertEquals(14746f, fields[13].toFloat(), 0.0001f)
+        assertEquals(0.1f, fields[10].toFloat(), 0.0001f)
+        assertEquals(0.2f, fields[11].toFloat(), 0.0001f)
+        assertEquals(0.3f, fields[12].toFloat(), 0.0001f)
+        assertEquals(0.9f, fields[13].toFloat(), 0.0001f)
     }
 }

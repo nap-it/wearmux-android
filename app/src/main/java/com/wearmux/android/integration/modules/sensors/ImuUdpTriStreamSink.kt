@@ -104,7 +104,7 @@ class ImuUdpTriStreamSink(
             sendFusedDevice(cfg, "phone", it.ax, it.ay, it.az, it.qx, it.qy, it.qz, it.qw)
         }
         latestWristband?.let {
-            sendFusedDevice(cfg, "wristband", it.ax.toFloat(), it.ay.toFloat(), it.az.toFloat(), it.qx.toFloat(), it.qy.toFloat(), it.qz.toFloat(), it.qw.toFloat())
+            sendFusedDevice(cfg, "wristband", it.ax.toFloat(), it.ay.toFloat(), it.az.toFloat(), it.qx, it.qy, it.qz, it.qw)
         }
         latestWatch?.let { w ->
             // Raw watch units: mg, mdps, uT*10 -> SI (same conversion as CoAxialImuFusion.toSiSnap).
