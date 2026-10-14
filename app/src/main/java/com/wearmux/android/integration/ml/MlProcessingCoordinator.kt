@@ -67,7 +67,7 @@ class MlProcessingCoordinator(
             client.setSensorsConfig(
                 rateMs = rateMs,
                 includeMagnetometer = SensorRatePolicy.includeMagnetometer(MlProcessingLocation.WRISTBAND),
-                includePressure = false, includeLinearAcceleration = true,
+                includePressure = false, includeLinearAcceleration = true, includeGameRotation = false,
             )
             client.setTfliteSampleRate(100)
             client.setTfliteTask(TFLITE_TASK_CLASSIFICATION)

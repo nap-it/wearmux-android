@@ -4,6 +4,7 @@ import android.bluetooth.BluetoothDevice
 import com.wearmux.android.integration.adapters.BleDeviceState
 import com.wearmux.android.integration.adapters.GattProfileSnapshot
 import com.wearmux.android.integration.protocol.ImuSample
+import com.wearmux.android.integration.protocol.WristbandFusedImuSample
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -19,6 +20,7 @@ interface BrilliantSoleWristbandBleClientApi {
     val gattProfile: StateFlow<GattProfileSnapshot?>
 
     var onImuSample: ((sample: ImuSample, timestampRaw16: Int, timestampEstimatedMs: Long) -> Unit)?
+    var onWristbandFusedSample: ((sample: WristbandFusedImuSample) -> Unit)?
     var onTfliteInference: ((label: String, score: Float, timestampEstimatedMs: Long, values: FloatArray) -> Unit)?
 
     fun connectDevice(device: BluetoothDevice)
@@ -28,6 +30,7 @@ interface BrilliantSoleWristbandBleClientApi {
         includeMagnetometer: Boolean = false,
         includePressure: Boolean = false,
         includeLinearAcceleration: Boolean = false,
+        includeGameRotation: Boolean = false,
     )
     fun sendHapticCommand(effectIndex: Int, locationBitmask: Int)
     fun sendWaveformVibration(amplitude: Float, durationMs: Int, locationBitmask: Int)

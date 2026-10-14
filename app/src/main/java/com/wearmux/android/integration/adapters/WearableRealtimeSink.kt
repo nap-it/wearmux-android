@@ -2,6 +2,7 @@ package com.wearmux.android.integration.adapters
 
 import com.wearmux.android.integration.protocol.GlassesFusedImuSample
 import com.wearmux.android.integration.protocol.ImuSample
+import com.wearmux.android.integration.protocol.WristbandFusedImuSample
 
 /**
  * Hot path para dados críticos com default no-op.
@@ -17,6 +18,7 @@ interface WearableRealtimeSink {
     fun onImuSample(id: WearableId, sample: ImuSample, timestampRaw16: Int, timestampEstimatedMs: Long) = Unit
     fun onQuaternion(id: WearableId, quaternion: FloatArray) = Unit
     fun onGlassesFusedSample(id: WearableId, sample: GlassesFusedImuSample) = Unit
+    fun onWristbandFusedSample(id: WearableId, sample: WristbandFusedImuSample) = Unit
     fun onTfliteInference(
         id: WearableId,
         label: String,

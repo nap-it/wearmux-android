@@ -27,11 +27,20 @@ class FakeBrilliantSoleWristbandBleClient : BrilliantSoleWristbandBleClientApi {
     override val gattProfile: StateFlow<GattProfileSnapshot?> = _gattProfile
 
     override var onImuSample: ((ImuSample, Int, Long) -> Unit)? = null
+    override var onWristbandFusedSample: ((com.wearmux.android.integration.protocol.WristbandFusedImuSample) -> Unit)? = null
     override var onTfliteInference: ((String, Float, Long, FloatArray) -> Unit)? = null
 
     var connectDeviceCalls = 0
     var disconnectCalls = 0
     val setSensorsConfigCalls = mutableListOf<Int>()
+    data class SetSensorsConfigCall(
+        val rateMs: Int,
+        val includeMagnetometer: Boolean,
+        val includePressure: Boolean,
+        val includeLinearAcceleration: Boolean,
+        val includeGameRotation: Boolean,
+    )
+    val setSensorsConfigFullCalls = mutableListOf<SetSensorsConfigCall>()
     val sendHapticCalls = mutableListOf<Pair<Int, Int>>()
     val sendWaveformCalls = mutableListOf<Triple<Float, Int, Int>>()
     var sendStopAlertVibrationCalls = 0
@@ -64,8 +73,17 @@ class FakeBrilliantSoleWristbandBleClient : BrilliantSoleWristbandBleClientApi {
 
     override fun connectDevice(device: BluetoothDevice) { connectDeviceCalls++ }
     override fun disconnect() { disconnectCalls++ }
-    override fun setSensorsConfig(rateMs: Int, includeMagnetometer: Boolean, includePressure: Boolean, includeLinearAcceleration: Boolean) {
+    override fun setSensorsConfig(
+        rateMs: Int,
+        includeMagnetometer: Boolean,
+        includePressure: Boolean,
+        includeLinearAcceleration: Boolean,
+        includeGameRotation: Boolean,
+    ) {
         setSensorsConfigCalls += rateMs
+        setSensorsConfigFullCalls += SetSensorsConfigCall(
+            rateMs, includeMagnetometer, includePressure, includeLinearAcceleration, includeGameRotation,
+        )
     }
     override fun sendHapticCommand(effectIndex: Int, locationBitmask: Int) {
         sendHapticCalls += effectIndex to locationBitmask

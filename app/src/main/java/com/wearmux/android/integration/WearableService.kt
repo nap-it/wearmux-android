@@ -182,6 +182,8 @@ class WearableService : Service(), LifecycleOwner {
         val phoneImuStream: SharedFlow<PhoneFusedImuSample> = _phoneImuStream
         internal val _wristbandImuStream = MutableSharedFlow<com.wearmux.android.integration.protocol.WristbandImuSample>(replay = 0, extraBufferCapacity = 512, onBufferOverflow = BufferOverflow.DROP_OLDEST)
         val wristbandImuStream: SharedFlow<com.wearmux.android.integration.protocol.WristbandImuSample> = _wristbandImuStream
+        internal val _wristbandFusedImuStream = MutableSharedFlow<com.wearmux.android.integration.protocol.WristbandFusedImuSample>(replay = 0, extraBufferCapacity = 256, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+        val wristbandFusedImuStream: SharedFlow<com.wearmux.android.integration.protocol.WristbandFusedImuSample> = _wristbandFusedImuStream
         internal val _latestGlassesQuaternion = MutableStateFlow<FloatArray?>(null); val latestGlassesQuaternion: StateFlow<FloatArray?> = _latestGlassesQuaternion
         internal val _latestGyIntegralDeg = MutableStateFlow<Float?>(null); val latestGyIntegralDeg: StateFlow<Float?> = _latestGyIntegralDeg
         internal val _latestGySpreadDeg = MutableStateFlow<Float?>(null); val latestGySpreadDeg: StateFlow<Float?> = _latestGySpreadDeg
@@ -475,6 +477,9 @@ class WearableService : Service(), LifecycleOwner {
         override fun onGlassesFusedSample(id: WearableId, sample: com.wearmux.android.integration.protocol.GlassesFusedImuSample) {
             WearableService._glassesFusedImuStream.tryEmit(sample)
         }
+        override fun onWristbandFusedSample(id: WearableId, sample: com.wearmux.android.integration.protocol.WristbandFusedImuSample) {
+            WearableService._wristbandFusedImuStream.tryEmit(sample)
+        }
         override fun onTfliteInference(id: WearableId, label: String, score: Float, timestampEstimatedMs: Long, values: FloatArray) =
             handleWristbandTfliteInference(label, score, timestampEstimatedMs, values)
     }
@@ -531,9 +536,10 @@ class WearableService : Service(), LifecycleOwner {
         com.wearmux.android.integration.modules.sensors.ImuUdpTriStreamSink(
             scope = serviceScope,
             config = { _imuCoCoConfig.value },
-            glassesImuStream = glassesImuStream,
+            glassesImuStream = glassesFusedImuStream,
             watchImuStream = watchImuStream,
             phoneImuStream = phoneImuStream,
+            wristbandImuStream = wristbandFusedImuStream,
         )
     }
     internal val cloudKwsForwarder by lazy {

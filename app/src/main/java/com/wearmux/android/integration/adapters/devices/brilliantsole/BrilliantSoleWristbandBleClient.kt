@@ -110,6 +110,7 @@ class BrilliantSoleWristbandBleClient(private val context: Context) : BrilliantS
     // Callback para publicar amostras IMU para a camada de Service/UI
     // inclui timestamp cru (16-bit) do pacote e timestamp estimado em ms
     override var onImuSample: ((sample: ImuSample, timestampRaw16: Int, timestampEstimatedMs: Long) -> Unit)? = null
+    override var onWristbandFusedSample: ((sample: com.wearmux.android.integration.protocol.WristbandFusedImuSample) -> Unit)? = null
 
     // Callback para resultados de inferência TFLite executada na pulseira
     override var onTfliteInference: ((label: String, score: Float, timestampEstimatedMs: Long, values: FloatArray) -> Unit)? = null
@@ -125,6 +126,14 @@ class BrilliantSoleWristbandBleClient(private val context: Context) : BrilliantS
     private var lastMy: Short = 0
     private var lastMz: Short = 0
     private var lastPressure: ShortArray = ShortArray(8)
+    private var lastLinAccX: Short = 0
+    private var lastLinAccY: Short = 0
+    private var lastLinAccZ: Short = 0
+    private var hasLinAcc: Boolean = false
+    private var lastQx: Short = 0
+    private var lastQy: Short = 0
+    private var lastQz: Short = 0
+    private var lastQw: Short = 0
     private var tfliteIsReady: Boolean = false
     private var tfliteInferencingEnabled: Boolean = false
     private var pendingTfliteEnable: Boolean = false
@@ -601,8 +610,34 @@ class BrilliantSoleWristbandBleClient(private val context: Context) : BrilliantS
                                 }
                             }
 
-                            SENSOR_TYPE_GRAVITY, SENSOR_TYPE_LINEAR_ACCELERATION, 8 -> { /* ignorar */ }
-                            6, 7 -> { /* saltar */ }
+                            SENSOR_TYPE_LINEAR_ACCELERATION -> {
+                                if (sensorDataLength >= 6) {
+                                    lastLinAccX = readInt16LE(data, offset)
+                                    lastLinAccY = readInt16LE(data, offset + 2)
+                                    lastLinAccZ = readInt16LE(data, offset + 4)
+                                    hasLinAcc = true
+                                }
+                            }
+
+                            SENSOR_TYPE_GAME_ROTATION -> {
+                                if (sensorDataLength >= 8) {
+                                    lastQx = readInt16LE(data, offset)
+                                    lastQy = readInt16LE(data, offset + 2)
+                                    lastQz = readInt16LE(data, offset + 4)
+                                    lastQw = readInt16LE(data, offset + 6)
+                                    if (hasLinAcc) {
+                                        onWristbandFusedSample?.invoke(
+                                            com.wearmux.android.integration.protocol.WristbandFusedImuSample(
+                                                ax = lastLinAccX, ay = lastLinAccY, az = lastLinAccZ,
+                                                qx = lastQx, qy = lastQy, qz = lastQz, qw = lastQw,
+                                            )
+                                        )
+                                    }
+                                }
+                            }
+
+                            SENSOR_TYPE_GRAVITY, 8 -> { /* ignorar */ }
+                            7 -> { /* saltar (rotation absoluta -- não pedida, não necessária) */ }
 
                             10, 11, 12, 13 -> { /* saltar */ }
 
@@ -751,12 +786,14 @@ class BrilliantSoleWristbandBleClient(private val context: Context) : BrilliantS
         includeMagnetometer: Boolean,
         includePressure: Boolean,
         includeLinearAcceleration: Boolean,
+        includeGameRotation: Boolean,
     ) {
         val sensorTypes = buildList {
             add(SENSOR_TYPE_ACCELERATION)
             if (includeLinearAcceleration) add(SENSOR_TYPE_LINEAR_ACCELERATION)
             add(SENSOR_TYPE_GYROSCOPE)
             if (includeMagnetometer) add(SENSOR_TYPE_MAGNETOMETER)
+            if (includeGameRotation) add(SENSOR_TYPE_GAME_ROTATION)
             if (includePressure) add(SENSOR_TYPE_PRESSURE)
         }
 

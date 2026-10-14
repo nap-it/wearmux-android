@@ -82,6 +82,9 @@ class BrilliantSoleWristbandWearableSession(
                 ),
             )
         }
+        client.onWristbandFusedSample = { fused ->
+            realtimeSink.onWristbandFusedSample(id, fused)
+        }
         client.onTfliteInference = { label, score, timestampEstimatedMs, values ->
             imuRealtimeQueue.trySend(
                 ImuRealtimeEvent.Inference(
@@ -191,7 +194,8 @@ class BrilliantSoleWristbandWearableSession(
                     rateMs = command.rateMs ?: 20,
                     includeMagnetometer = false,
                     includePressure = false,
-                    includeLinearAcceleration = false,
+                    includeLinearAcceleration = true,
+                    includeGameRotation = true,
                 )
                 CommandResult.Accepted
             }

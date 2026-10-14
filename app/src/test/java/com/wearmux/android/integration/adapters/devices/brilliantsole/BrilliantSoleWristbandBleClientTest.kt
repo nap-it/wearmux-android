@@ -1,10 +1,16 @@
 package com.wearmux.android.integration.adapters.devices.brilliantsole
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class BrilliantSoleWristbandBleClientTest {
+
+    @Test
+    fun `SENSOR_TYPE_GAME_ROTATION matches the BrilliantSole SDK's confirmed protocol index`() {
+        assertEquals(6, SENSOR_TYPE_GAME_ROTATION)
+    }
 
     @Test
     fun shouldConnectSharedSdkAdvertiser_falseForGlassesManufacturerType() {

@@ -146,6 +146,19 @@ class BrilliantSoleWristbandWearableSessionTest {
     }
 
     @Test
+    fun `setImuStreaming requests linear acceleration and game rotation, not magnetometer`() = runTest {
+        val (session, client) = makeSession(scope = this)
+        val result = session.send(WearableCommand.SetImuStreaming(enabled = true, rateMs = 20))
+        assertEquals(CommandResult.Accepted, result)
+        val call = client.setSensorsConfigFullCalls.last()
+        assertEquals(20, call.rateMs)
+        assertTrue(call.includeLinearAcceleration)
+        assertTrue(call.includeGameRotation)
+        assertEquals(false, call.includeMagnetometer)
+        session.close()
+    }
+
+    @Test
     fun bleStateError_emitsConnectionChanged() = runTest {
         val (session, client) = makeSession(scope = this)
         session.events.test {
