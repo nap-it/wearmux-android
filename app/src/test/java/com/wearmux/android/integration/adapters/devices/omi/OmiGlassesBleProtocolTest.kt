@@ -50,4 +50,30 @@ class OmiGlassesBleProtocolTest {
         assertTrue(sentMessages.contains(SENSOR_TYPE_GAME_ROTATION to rateMs))
         assertTrue(sentMessages.contains(SENSOR_TYPE_LINEAR_ACCELERATION to rateMs))
     }
+
+    @Test
+    fun `disableImuSensors's TLV messages set every requested sensor, including linearAcceleration, to rate zero`() {
+        val messages = listOf(
+            setSensorRateMessage(SENSOR_TYPE_ACCELERATION, 0),
+            setSensorRateMessage(SENSOR_TYPE_GYROSCOPE, 0),
+            setSensorRateMessage(SENSOR_TYPE_MAGNETOMETER, 0),
+            setSensorRateMessage(SENSOR_TYPE_GAME_ROTATION, 0),
+            setSensorRateMessage(SENSOR_TYPE_LINEAR_ACCELERATION, 0),
+        )
+        val encoded = TlvWriter.encodeAll(messages)
+
+        val parsed = TlvParser.parseTxRxToList(encoded, 0, encoded.size)
+        val sentMessages = parsed.map { msg ->
+            val sensorType = msg.data[0].toInt() and 0xFF
+            val decodedRateMs = (msg.data[1].toInt() and 0xFF) or ((msg.data[2].toInt() and 0xFF) shl 8)
+            sensorType to decodedRateMs
+        }
+
+        assertEquals(5, sentMessages.size)
+        assertTrue(sentMessages.contains(SENSOR_TYPE_ACCELERATION to 0))
+        assertTrue(sentMessages.contains(SENSOR_TYPE_GYROSCOPE to 0))
+        assertTrue(sentMessages.contains(SENSOR_TYPE_MAGNETOMETER to 0))
+        assertTrue(sentMessages.contains(SENSOR_TYPE_GAME_ROTATION to 0))
+        assertTrue(sentMessages.contains(SENSOR_TYPE_LINEAR_ACCELERATION to 0))
+    }
 }

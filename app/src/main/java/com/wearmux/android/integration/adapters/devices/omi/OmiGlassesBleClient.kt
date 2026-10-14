@@ -398,6 +398,7 @@ class OmiGlassesBleClient(private val context: Context) : OmiGlassesBleClientApi
             buildSetSensorRateMessage(SENSOR_TYPE_GYROSCOPE, 0),
             buildSetSensorRateMessage(SENSOR_TYPE_MAGNETOMETER, 0),
             buildSetSensorRateMessage(SENSOR_TYPE_GAME_ROTATION, 0),
+            buildSetSensorRateMessage(SENSOR_TYPE_LINEAR_ACCELERATION, 0),
         )
         WearableService.appendLog("🧭 Omi IMU disabled")
     }
