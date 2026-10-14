@@ -5,6 +5,7 @@ import com.wearmux.android.integration.adapters.BleDeviceState
 import com.wearmux.android.integration.adapters.GattProfileSnapshot
 import com.wearmux.android.integration.adapters.devices.omi.OmiGlassesBleClientApi
 import com.wearmux.android.integration.modules.microphone.GlassesMicrophoneProfile
+import com.wearmux.android.integration.protocol.GlassesFusedImuSample
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -32,6 +33,7 @@ class FakeOmiGlassesBleClient : OmiGlassesBleClientApi {
     override var onMicrophoneConfig: ((Int, Int, Int) -> Unit)? = null
     override var onImuData: ((ByteArray) -> Unit)? = null
     override var onGlassesQuaternion: ((FloatArray) -> Unit)? = null
+    override var onGlassesFusedSample: ((GlassesFusedImuSample) -> Unit)? = null
     override var onGlassesIpReceived: ((String) -> Unit)? = null
     override var onUdpTxNeeded: ((ByteArray) -> Unit)? = null
 

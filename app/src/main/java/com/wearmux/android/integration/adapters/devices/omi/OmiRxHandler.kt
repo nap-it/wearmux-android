@@ -141,6 +141,7 @@ class OmiRxHandler(
         private const val SENSOR_TYPE_GYROSCOPE = 4
         private const val SENSOR_TYPE_MAGNETOMETER = 5
         private const val SENSOR_TYPE_GAME_ROTATION = 6
+        private const val SENSOR_TYPE_LINEAR_ACCELERATION = 3
         private const val CAMERA_SUBTYPE_MIN = 0
         private const val CAMERA_SUBTYPE_MAX = 5
         private const val CAMERA_PAYLOAD_PREVIEW_BYTES = 12
@@ -703,6 +704,7 @@ class OmiRxHandler(
                                 SENSOR_TYPE_GYROSCOPE -> SdkSensorType.GYROSCOPE
                                 SENSOR_TYPE_MAGNETOMETER -> SdkSensorType.MAGNETOMETER
                                 SENSOR_TYPE_GAME_ROTATION -> SdkSensorType.GAME_ROTATION
+                                SENSOR_TYPE_LINEAR_ACCELERATION -> SdkSensorType.LINEAR_ACCELERATION
                                 else -> null
                             }
                             if (mappedType != null) {

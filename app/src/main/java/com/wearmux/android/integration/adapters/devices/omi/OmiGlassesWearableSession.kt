@@ -124,6 +124,9 @@ class OmiGlassesWearableSession(
         client.onGlassesQuaternion = { quaternion ->
             imuRealtimeQueue.trySend(ImuRealtimeEvent.Quaternion(quaternion))
         }
+        client.onGlassesFusedSample = { fused ->
+            realtimeSink.onGlassesFusedSample(id, fused)
+        }
     }
 
     private fun startRealtimeWorkers() {

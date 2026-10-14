@@ -38,6 +38,8 @@ import com.wearmux.android.integration.ble.OmiRxHandler
 import com.wearmux.android.integration.modules.microphone.GlassesMicrophoneProfile
 import com.wearmux.android.integration.normalizeImuSensorRateMs
 import com.wearmux.android.integration.normalizeSensorRateMsForSdk
+import com.wearmux.android.integration.protocol.GlassesFusedImuSample
+import com.wearmux.android.integration.protocol.mergeGlassesFusedSample
 import com.wearmux.android.integration.protocol.tlv.TlvWriter
 import com.wearmux.android.integration.protocol.tlv.TxRxMessageType
 import java.io.ByteArrayOutputStream
@@ -174,6 +176,7 @@ class OmiGlassesBleClient(private val context: Context) : OmiGlassesBleClientApi
     private var sdkLastGyro: Triple<Short, Short, Short>? = null
     private var sdkLastMag: Triple<Short, Short, Short>? = null
     private var sdkLastImuForwardAtMs = 0L
+    @Volatile private var lastLinearAccel: SdkSensorSample? = null
     private var imuStreamingDesired = false
     private var imuRateMs = DEFAULT_IMU_RATE_MS
 
@@ -246,6 +249,7 @@ class OmiGlassesBleClient(private val context: Context) : OmiGlassesBleClientApi
                 SdkSensorType.ACCELEROMETER -> sdkLastAccel = Triple(sample.x, sample.y, sample.z)
                 SdkSensorType.GYROSCOPE -> sdkLastGyro = Triple(sample.x, sample.y, sample.z)
                 SdkSensorType.MAGNETOMETER -> sdkLastMag = Triple(sample.x, sample.y, sample.z)
+                SdkSensorType.LINEAR_ACCELERATION -> lastLinearAccel = sample
                 SdkSensorType.GAME_ROTATION -> {
                     val scale = 1f / 16384f
                     this@OmiGlassesBleClient.onGlassesQuaternion?.invoke(
@@ -256,6 +260,9 @@ class OmiGlassesBleClient(private val context: Context) : OmiGlassesBleClientApi
                             sample.w * scale,
                         )
                     )
+                    mergeGlassesFusedSample(lastLinearAccel, sample)?.let { fused ->
+                        this@OmiGlassesBleClient.onGlassesFusedSample?.invoke(fused)
+                    }
                 }
             }
 
@@ -354,6 +361,7 @@ class OmiGlassesBleClient(private val context: Context) : OmiGlassesBleClientApi
     override var onImuData: ((ByteArray) -> Unit)? = null
     // Quaternion callback - FloatArray[4] = {x, y, z, w} from BNO085 game rotation (scaled 1/16384)
     override var onGlassesQuaternion: ((FloatArray) -> Unit)? = null
+    override var onGlassesFusedSample: ((GlassesFusedImuSample) -> Unit)? = null
     override var onGlassesIpReceived: ((String) -> Unit)? = null
     override var onUdpTxNeeded: ((ByteArray) -> Unit)? = null
 

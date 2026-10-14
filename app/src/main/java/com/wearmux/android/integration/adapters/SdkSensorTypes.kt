@@ -17,6 +17,7 @@ enum class SdkSensorType {
     GYROSCOPE,
     MAGNETOMETER,
     GAME_ROTATION,
+    LINEAR_ACCELERATION,
 }
 
 data class SdkSensorSample(

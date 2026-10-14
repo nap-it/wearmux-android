@@ -176,6 +176,8 @@ class WearableService : Service(), LifecycleOwner {
         internal val _latestGlassesImu = MutableStateFlow<GlassesImuSample?>(null); val latestGlassesImu: StateFlow<GlassesImuSample?> = _latestGlassesImu
         internal val _glassesImuStream = MutableSharedFlow<GlassesImuSample>(replay = 0, extraBufferCapacity = 256, onBufferOverflow = BufferOverflow.DROP_OLDEST)
         val glassesImuStream: SharedFlow<GlassesImuSample> = _glassesImuStream
+        internal val _glassesFusedImuStream = MutableSharedFlow<com.wearmux.android.integration.protocol.GlassesFusedImuSample>(replay = 0, extraBufferCapacity = 256, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+        val glassesFusedImuStream: SharedFlow<com.wearmux.android.integration.protocol.GlassesFusedImuSample> = _glassesFusedImuStream
         internal val _phoneImuStream = MutableSharedFlow<PhoneFusedImuSample>(replay = 0, extraBufferCapacity = 256, onBufferOverflow = BufferOverflow.DROP_OLDEST)
         val phoneImuStream: SharedFlow<PhoneFusedImuSample> = _phoneImuStream
         internal val _wristbandImuStream = MutableSharedFlow<com.wearmux.android.integration.protocol.WristbandImuSample>(replay = 0, extraBufferCapacity = 512, onBufferOverflow = BufferOverflow.DROP_OLDEST)
@@ -470,6 +472,9 @@ class WearableService : Service(), LifecycleOwner {
         override fun onImuSample(id: WearableId, sample: ImuSample, timestampRaw16: Int, timestampEstimatedMs: Long) =
             handleWristbandImuSample(sample, timestampRaw16, timestampEstimatedMs)
         override fun onQuaternion(id: WearableId, quaternion: FloatArray) = handleGlassesQuaternion(quaternion)
+        override fun onGlassesFusedSample(id: WearableId, sample: com.wearmux.android.integration.protocol.GlassesFusedImuSample) {
+            WearableService._glassesFusedImuStream.tryEmit(sample)
+        }
         override fun onTfliteInference(id: WearableId, label: String, score: Float, timestampEstimatedMs: Long, values: FloatArray) =
             handleWristbandTfliteInference(label, score, timestampEstimatedMs, values)
     }

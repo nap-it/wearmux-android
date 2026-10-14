@@ -4,6 +4,7 @@ import android.bluetooth.BluetoothDevice
 import com.wearmux.android.integration.adapters.BleDeviceState
 import com.wearmux.android.integration.adapters.GattProfileSnapshot
 import com.wearmux.android.integration.modules.microphone.GlassesMicrophoneProfile
+import com.wearmux.android.integration.protocol.GlassesFusedImuSample
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -33,6 +34,7 @@ interface OmiGlassesBleClientApi {
     var onMicrophoneConfig: ((sampleRate: Int, bitDepth: Int, codecId: Int) -> Unit)?
     var onImuData: ((ByteArray) -> Unit)?
     var onGlassesQuaternion: ((FloatArray) -> Unit)?
+    var onGlassesFusedSample: ((GlassesFusedImuSample) -> Unit)?
     var onGlassesIpReceived: ((String) -> Unit)?
     var onUdpTxNeeded: ((ByteArray) -> Unit)?
 

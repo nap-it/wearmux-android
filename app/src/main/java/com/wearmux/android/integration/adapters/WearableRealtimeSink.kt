@@ -1,5 +1,6 @@
 package com.wearmux.android.integration.adapters
 
+import com.wearmux.android.integration.protocol.GlassesFusedImuSample
 import com.wearmux.android.integration.protocol.ImuSample
 
 /**
@@ -15,6 +16,7 @@ interface WearableRealtimeSink {
     fun onImuPacket(id: WearableId, bytes: ByteArray) = Unit
     fun onImuSample(id: WearableId, sample: ImuSample, timestampRaw16: Int, timestampEstimatedMs: Long) = Unit
     fun onQuaternion(id: WearableId, quaternion: FloatArray) = Unit
+    fun onGlassesFusedSample(id: WearableId, sample: GlassesFusedImuSample) = Unit
     fun onTfliteInference(
         id: WearableId,
         label: String,
