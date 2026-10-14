@@ -62,10 +62,6 @@ class PhoneSensorManager(private val context: Context) : SensorEventListener {
     private val gyroSensor: Sensor? =
         sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE)
 
-    // Magnetómetro (necessário para corrigir yaw/norte magnético no filtro de fusão)
-    private val magSensor: Sensor? =
-        sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
-
     // Orientação relativa já fundida pelo Android (sem norte magnético) — substitui o Madgwick próprio.
     private val gameRotationSensor: Sensor? =
         sensorManager.getDefaultSensor(Sensor.TYPE_GAME_ROTATION_VECTOR)
@@ -80,9 +76,6 @@ class PhoneSensorManager(private val context: Context) : SensorEventListener {
     private val _latestGyro = MutableStateFlow(floatArrayOf(0f, 0f, 0f))
     val latestGyro: StateFlow<FloatArray> = _latestGyro
 
-    private val _latestMag = MutableStateFlow(floatArrayOf(0f, 0f, 0f))
-    val latestMag: StateFlow<FloatArray> = _latestMag
-
     private val _latestGameRotation = MutableStateFlow(floatArrayOf(0f, 0f, 0f, 1f))
     val latestGameRotation: StateFlow<FloatArray> = _latestGameRotation
 
@@ -96,7 +89,6 @@ class PhoneSensorManager(private val context: Context) : SensorEventListener {
     var onAccelSample: ((PhoneAccelSample) -> Unit)? = null
     var onGpsUpdate: ((PhoneGpsLocation) -> Unit)? = null
     var onGyroSample: ((FloatArray, Long) -> Unit)? = null
-    var onMagSample: ((FloatArray, Long) -> Unit)? = null
     var onGameRotationSample: ((FloatArray, Long) -> Unit)? = null
 
     private var locationCallback: LocationCallback? = null
@@ -112,10 +104,6 @@ class PhoneSensorManager(private val context: Context) : SensorEventListener {
         } ?: Log.w(TAG, "LINEAR_ACCELERATION sensor not available")
 
         gyroSensor?.let {
-            sensorManager.registerListener(this, it, ACCEL_SENSOR_DELAY)
-        }
-
-        magSensor?.let {
             sensorManager.registerListener(this, it, ACCEL_SENSOR_DELAY)
         }
 
@@ -154,10 +142,6 @@ class PhoneSensorManager(private val context: Context) : SensorEventListener {
             Sensor.TYPE_GYROSCOPE -> {
                 _latestGyro.value = values.copyOf()
                 onGyroSample?.invoke(values.copyOf(), timestampNs)
-            }
-            Sensor.TYPE_MAGNETIC_FIELD -> {
-                _latestMag.value = values.copyOf()
-                onMagSample?.invoke(values.copyOf(), timestampNs)
             }
             Sensor.TYPE_GAME_ROTATION_VECTOR -> {
                 _latestGameRotation.value = values.copyOf()
