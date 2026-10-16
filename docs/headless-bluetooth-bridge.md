@@ -11,5 +11,3 @@ Starting the bridge explicitly disconnects and gates the existing glasses client
 The Android app requires nearby-device, notification, and network permissions. The bridge does not derive physical location from BLE scans; Android may therefore grant `BLUETOOTH_SCAN` with `neverForLocation`. Fine/coarse location remains available for the app's separate GPS features and is optional for this bridge. Remote deployments should use `wss://`; cleartext `ws://` is retained for the local Droidspaces deployment.
 
 The complete wire contract is in [headless-bluetooth-protocol.md](headless-bluetooth-protocol.md).
-
-Evaluation callback metadata is optional and negotiated by Headless with `HITL_EVAL_DETAIL=1`. The clock-mapping exchange estimates Android-to-Headless offset without changing either clock. See the protocol document for clock domains, uncertainty and rendering limitations. The installed APK must contain this extension before Android timing can be collected; changing the repository alone does not update the phone.
