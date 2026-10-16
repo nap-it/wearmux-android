@@ -22,3 +22,44 @@ Frames are JSON text, at most 64 KiB. Binary characteristic values are canonical
 The main service is `ea6d0000-a725-4f9b-893d-c3913e33b39f`; RX is `ea6d1000-a725-4f9b-893d-c3913e33b39f`. RX CCCD must be enabled before `connected`. Prefer ATT MTU 517; the headless SDK also learns the firmware's protocol MTU from its existing `getMtu` response and must honor the smaller limit. Preserve complete SDK TLV messages (one-byte type, two-byte little-endian length, payload). The Android app must not interpret display or sensor protocol opcodes.
 
 Close/disconnect all GATT state when the WebSocket is lost or the foreground service stops. Never replay writes after WebSocket reconnection. Heartbeats use standard WebSocket ping/pong. Bound write queues and timeouts; report failures rather than dropping control commands. Never publish VRU answers or fabricate display readiness in the bridge.
+
+## Optional evaluation timing extension
+
+New companions advertise `"timingVersion":1` in `hello`, with an optional
+`timing` snapshot. Old peers can ignore these fields; protocol version remains
+1. Headless requests callback metadata by adding `"evaluationTiming":true` to
+its hello reply only when `HITL_EVAL_DETAIL=1`. Without this negotiation the
+Android companion forwards characteristic values and write results with the
+original frame shape and does not collect per-callback timing snapshots.
+
+With timing enabled, `value` and successful or failed GATT callback `writeResult`
+frames contain `timing` captured on the callback thread **before** posting to
+Android's main thread. Locally rejected or cancelled writes may lack callback
+timing. A snapshot has decimal-string `wall_time_ns` (millisecond resolution)
+and `mono_time_ns` from `SystemClock.elapsedRealtimeNanos()`, plus
+`clock_domain: "android:<process-instance-uuid>:elapsed_realtime"`,
+`process_instance`, `sequence`, and `trace_event_id`. The process-specific domain
+forces a new mapping after an app restart. It must not be equated to Linux
+`CLOCK_MONOTONIC`: Android elapsed real time includes deep sleep. No sensor bytes,
+credentials, or question text are included in evaluation telemetry.
+
+Only after hello/authentication, Headless may send
+`{"type":"clockProbe","probeId":"<uuid>"}` to an advertising companion.
+Android replies `{"type":"clockSample","probeId":"<uuid>","received":{...},"sent":{...}}`.
+`received` is captured at the WebSocket callback before `Handler.post`; `sent` is
+captured immediately before constructing/enqueueing the response. These frames
+do not enter the BLE queue. Probe IDs are bounded to 64 alphanumeric/hyphen
+characters, Android limits responses to one per 50 ms, and Headless allows one
+outstanding probe with a five-second timeout. Late samples do not disconnect BLE.
+
+Headless emits an `android_clock_sample` event containing `headless_send`,
+`android_received`, `android_sent`, and `headless_receive`. It sends one probe
+after a supported hello and repeats every 30 seconds in detail mode. Estimate
+offset, delay, drift and uncertainty offline from all four timestamps; retain
+network-asymmetry uncertainty and recalibrate after suspension/reconnection.
+These exchanges estimate a mapping; they do not adjust device clocks.
+
+In detail mode, `android_ble_value_received` and `android_ble_write_result`
+events carry the Android snapshot plus the Headless receive time; where an
+interaction is active they also carry prompt/action correlation. GATT write
+completion establishes neither firmware rendering nor optical completion.
