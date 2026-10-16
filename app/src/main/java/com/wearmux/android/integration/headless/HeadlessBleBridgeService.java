@@ -27,6 +27,9 @@ public final class HeadlessBleBridgeService extends Service {
     private static final UUID DEVICE_INFO=UUID.fromString("0000180a-0000-1000-8000-00805f9b34fb");
     private static final Map<UUID,String> INFO = new HashMap<>();
     static { INFO.put(UUID.fromString("00002a29-0000-1000-8000-00805f9b34fb"),"manufacturerName"); INFO.put(UUID.fromString("00002a24-0000-1000-8000-00805f9b34fb"),"modelNumber"); INFO.put(UUID.fromString("00002a27-0000-1000-8000-00805f9b34fb"),"hardwareRevision"); INFO.put(UUID.fromString("00002a26-0000-1000-8000-00805f9b34fb"),"firmwareRevision"); INFO.put(UUID.fromString("00002a28-0000-1000-8000-00805f9b34fb"),"softwareRevision"); INFO.put(UUID.fromString("00002a25-0000-1000-8000-00805f9b34fb"),"serialNumber"); INFO.put(UUID.fromString("00002a50-0000-1000-8000-00805f9b34fb"),"pnpId"); }
+    private static final BridgeTiming TIMING = new BridgeTiming(System::currentTimeMillis, SystemClock::elapsedRealtimeNanos);
+    private long lastClockProbeNanos;
+    private volatile boolean evaluationTiming;
     private final Handler main = new Handler(Looper.getMainLooper());
     private final OkHttpClient http = new OkHttpClient.Builder().pingInterval(20, TimeUnit.SECONDS).build();
     private final OperationQueue<Op> queue = new OperationQueue<>(32);
@@ -86,20 +89,29 @@ public final class HeadlessBleBridgeService extends Service {
         if (authorization != null) request.header("Authorization", authorization);
         Request req = request.build();
         socket = http.newWebSocket(req, new WebSocketListener() {
-            @Override public void onOpen(WebSocket s, Response r) { main.post(() -> { if (s != socket || destroyed) return; socketReady=false; helloSeen=false; send(BridgeProtocol.hello()); }); }
-            @Override public void onMessage(WebSocket s, String text) { main.post(() -> { if (s == socket && !destroyed) handle(text); }); }
+            @Override public void onOpen(WebSocket s, Response r) { main.post(() -> { if (s != socket || destroyed) return; socketReady=false; helloSeen=false; send(BridgeProtocol.timedHello(TIMING.capture())); }); }
+            @Override public void onMessage(WebSocket s, String text) { final BridgeTiming.Snapshot received = TIMING.capture(); main.post(() -> { if (s == socket && !destroyed) handle(text, received); }); }
             @Override public void onClosing(WebSocket s, int c, String reason) { s.close(c, reason); main.post(() -> { if (s == socket) { socketReady=false; closeGatt(reason); } }); }
             @Override public void onFailure(WebSocket s, Throwable t, Response r) { main.post(() -> socketEnded(s, "websocket lost")); }
             @Override public void onClosed(WebSocket s, int c, String reason) { main.post(() -> socketEnded(s, reason)); }
         });
     }
     private void socketEnded(WebSocket s, String reason) { if (s != socket || destroyed) return; socket=null; socketReady=false; helloSeen=false; closeGatt(reason); main.removeCallbacks(reconnect); main.postDelayed(reconnect, 3000); }
-    private void handle(String text) {
+    private void handle(String text, BridgeTiming.Snapshot received) {
         if (text.length() > BridgeProtocol.MAX_FRAME) { sendError("frame too large"); return; }
         try {
             JSONObject o=new JSONObject(text); String type=o.optString("type");
-            if ("hello".equals(type)) { if (helloSeen || o.optInt("version", -1)!=1) { sendError("invalid or duplicate hello"); return; } helloSeen=true; socketReady=true; startScan(); return; }
+            if ("hello".equals(type)) { if (helloSeen || o.optInt("version", -1)!=1) { sendError("invalid or duplicate hello"); return; } helloSeen=true; socketReady=true; evaluationTiming=o.optBoolean("evaluationTiming", false); startScan(); return; }
             if (!socketReady) { sendError("hello required"); return; }
+            if ("clockProbe".equals(type)) {
+                String probeId = o.optString("probeId", "");
+                if (!probeId.matches("[A-Za-z0-9-]{1,64}")) { sendError("invalid clock probe"); return; }
+                // Authenticated clock probes never enter the BLE operation queue.
+                if (lastClockProbeNanos != 0 && received.monoNanos - lastClockProbeNanos < 50000000L) return;
+                lastClockProbeNanos = received.monoNanos;
+                send(BridgeProtocol.clockSample(probeId, received, TIMING.capture()));
+                return;
+            }
             if ("write".equals(type)) handleWrite(o); else if ("disconnect".equals(type)) { if (device != null && sameDevice(o.optString("deviceId"))) { closeGatt("requested"); scheduleScanRetry(); } }
         } catch (Exception e) { sendError("invalid frame"); }
     }
@@ -140,9 +152,9 @@ public final class HeadlessBleBridgeService extends Service {
         @Override public void onServicesDiscovered(BluetoothGatt g,int status){main.post(()->{if(!live(g))return;if(setupTimeout!=null){main.removeCallbacks(setupTimeout);setupTimeout=null;}if(status!=BluetoothGatt.GATT_SUCCESS){failGatt("service discovery failed");return;}BluetoothGattService s=g.getService(MAIN);if(s==null){failGatt("main service not found");return;}rx=s.getCharacteristic(RX);tx=s.getCharacteristic(TX);if(rx==null||tx==null){failGatt("RX/TX characteristic missing");return;}enqueue(Op.mtu());enqueue(Op.enableNotifications());pump();});}
         @Override public void onMtuChanged(BluetoothGatt g,int mtu,int status){main.post(()->{if(!live(g)||active==null||active.kind!=Op.Kind.MTU)return;negotiatedMtu=status==BluetoothGatt.GATT_SUCCESS?Math.max(23,mtu):23;done();});}
         @Override public void onDescriptorWrite(BluetoothGatt g,BluetoothGattDescriptor d,int status){main.post(()->{if(!live(g)||active==null||active.kind!=Op.Kind.NOTIFY||!CCCD.equals(d.getUuid()))return;if(status!=BluetoothGatt.GATT_SUCCESS){failGatt("RX notification enable failed");return;}done();});}
-        @Override public void onCharacteristicWrite(BluetoothGatt g,BluetoothGattCharacteristic c,int status){main.post(()->{if(!live(g)||active==null||active.kind!=Op.Kind.WRITE||!TX.equals(c.getUuid()))return;Op op=active;sendWriteResult(device.getAddress(),op.requestId,status==BluetoothGatt.GATT_SUCCESS,status==0?null:"GATT write failed "+status);done();});}
-        @Override public void onCharacteristicChanged(BluetoothGatt g,BluetoothGattCharacteristic c,byte[] v){main.post(()->{if(live(g)&&announced&&RX.equals(c.getUuid()))send(BridgeProtocol.value(device.getAddress(),"rx",v));});}
-        @Override public void onCharacteristicRead(BluetoothGatt g,BluetoothGattCharacteristic c,byte[] v,int status){main.post(()->{if(!live(g)||active==null||active.kind!=Op.Kind.READ||!active.uuid.equals(c.getUuid()))return;Op op=active;if(status==BluetoothGatt.GATT_SUCCESS)send(BridgeProtocol.value(device.getAddress(),op.name,v));else sendError("read failed");done();});}
+        @Override public void onCharacteristicWrite(BluetoothGatt g,BluetoothGattCharacteristic c,int status){final BridgeTiming.Snapshot callbackTime=evaluationTiming?TIMING.capture():null;main.post(()->{if(!live(g)||active==null||active.kind!=Op.Kind.WRITE||!TX.equals(c.getUuid()))return;Op op=active;send(BridgeProtocol.timed(BridgeProtocol.writeResult(device.getAddress(),op.requestId,status==BluetoothGatt.GATT_SUCCESS,status==0?null:"GATT write failed "+status),callbackTime));done();});}
+        @Override public void onCharacteristicChanged(BluetoothGatt g,BluetoothGattCharacteristic c,byte[] v){final BridgeTiming.Snapshot callbackTime=evaluationTiming?TIMING.capture():null;main.post(()->{if(live(g)&&announced&&RX.equals(c.getUuid()))send(BridgeProtocol.timed(BridgeProtocol.value(device.getAddress(),"rx",v),callbackTime));});}
+        @Override public void onCharacteristicRead(BluetoothGatt g,BluetoothGattCharacteristic c,byte[] v,int status){final BridgeTiming.Snapshot callbackTime=evaluationTiming?TIMING.capture():null;main.post(()->{if(!live(g)||active==null||active.kind!=Op.Kind.READ||!active.uuid.equals(c.getUuid()))return;Op op=active;if(status==BluetoothGatt.GATT_SUCCESS)send(BridgeProtocol.timed(BridgeProtocol.value(device.getAddress(),op.name,v),callbackTime));else sendError("read failed");done();});}
     }
     private void enqueue(Op op) { queue.offer(op); }
     private void pump() {
