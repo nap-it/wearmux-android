@@ -62,6 +62,9 @@ object WatchProtocol {
     const val IMU_HEADER_SIZE = 16
     const val IMU_SAMPLE_SIZE = 32
 
+    /** Fator de escala Q14 para o quaternion fundido no dispositivo (game rotation vector). */
+    const val QUAT_Q14_SCALE = 1f / 16384f
+
     const val SENSOR_MASK_ACCEL = 0x0001
     const val SENSOR_MASK_GYRO = 0x0002
     const val SENSOR_MASK_MAG = 0x0004
@@ -78,6 +81,7 @@ object WatchProtocol {
         val axMg: Short, val ayMg: Short, val azMg: Short,
         val gxMdps: Short, val gyMdps: Short, val gzMdps: Short,
         val mxUtX10: Short, val myUtX10: Short, val mzUtX10: Short,
+        val qxQ14: Short, val qyQ14: Short, val qzQ14: Short,
     )
 
     fun parseHeader(buf: ByteBuffer): Header? {
@@ -101,8 +105,7 @@ object WatchProtocol {
         val ax = buf.short; val ay = buf.short; val az = buf.short
         val gx = buf.short; val gy = buf.short; val gz = buf.short
         val mx = buf.short; val my = buf.short; val mz = buf.short
-        // 6 bytes reservados
-        buf.position(buf.position() + 6)
-        return WatchImuSample(ts, ax, ay, az, gx, gy, gz, mx, my, mz)
+        val qx = buf.short; val qy = buf.short; val qz = buf.short
+        return WatchImuSample(ts, ax, ay, az, gx, gy, gz, mx, my, mz, qx, qy, qz)
     }
 }

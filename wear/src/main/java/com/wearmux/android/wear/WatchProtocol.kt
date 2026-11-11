@@ -72,13 +72,14 @@ object WatchProtocol {
         axMg: Short, ayMg: Short, azMg: Short,
         gxMdps: Short, gyMdps: Short, gzMdps: Short,
         mxUtX10: Short, myUtX10: Short, mzUtX10: Short,
+        qxQ14: Short = 0, qyQ14: Short = 0, qzQ14: Short = 0,
     ) {
         out.order(ByteOrder.LITTLE_ENDIAN)
         out.putLong(timestampUs)
         out.putShort(axMg); out.putShort(ayMg); out.putShort(azMg)
         out.putShort(gxMdps); out.putShort(gyMdps); out.putShort(gzMdps)
         out.putShort(mxUtX10); out.putShort(myUtX10); out.putShort(mzUtX10)
-        out.putShort(0); out.putShort(0); out.putShort(0)
+        out.putShort(qxQ14); out.putShort(qyQ14); out.putShort(qzQ14)
     }
 
     fun encodeHeader(
