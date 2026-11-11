@@ -217,8 +217,19 @@ class ImuStreamingService : Service(), SensorEventListener {
         // microsegundos directos (1_000_000 / rate).
         val periodUs = 1_000_000 / _sampleRateHz.value.coerceAtLeast(1)
 
-        sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)?.let {
-            sensorManager.registerListener(this, it, periodUs)
+        // TYPE_LINEAR_ACCELERATION reporta aceleração já sem gravidade (fundida
+        // pelo SO), tal como o BNO085 do wristband já faz no chip. TYPE_ACCELEROMETER
+        // (bruto, com gravidade ≈9.81 m/s²) causava um resíduo de gravidade
+        // sistemático em acc_glb que o RNN de translação integrava em drift de
+        // posição — confirmado em teste com watch+wristband no mesmo pulso.
+        val linearAccelSensor = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION)
+        if (linearAccelSensor != null) {
+            sensorManager.registerListener(this, linearAccelSensor, periodUs)
+        } else {
+            Log.w(TAG, "TYPE_LINEAR_ACCELERATION not available, falling back to raw TYPE_ACCELEROMETER (gravity residual expected)")
+            sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)?.let {
+                sensorManager.registerListener(this, it, periodUs)
+            }
         }
         sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE)?.let {
             sensorManager.registerListener(this, it, periodUs)
@@ -242,8 +253,16 @@ class ImuStreamingService : Service(), SensorEventListener {
 
     override fun onSensorChanged(event: SensorEvent) {
         when (event.sensor.type) {
+            Sensor.TYPE_LINEAR_ACCELERATION -> {
+                // m/s² → mg : valor / 9.80665 * 1000. Gravidade já removida pelo SO.
+                latestAxMg = (event.values[0] * 101.97f).toInt().toShort()
+                latestAyMg = (event.values[1] * 101.97f).toInt().toShort()
+                latestAzMg = (event.values[2] * 101.97f).toInt().toShort()
+            }
             Sensor.TYPE_ACCELEROMETER -> {
-                // m/s² → mg : valor / 9.80665 * 1000
+                // Fallback só usado quando TYPE_LINEAR_ACCELERATION não existe no
+                // dispositivo — ver registerSensors(). Mesma conversão; resíduo de
+                // gravidade fica a cargo do offset de calibração do live_demo.py.
                 latestAxMg = (event.values[0] * 101.97f).toInt().toShort()
                 latestAyMg = (event.values[1] * 101.97f).toInt().toShort()
                 latestAzMg = (event.values[2] * 101.97f).toInt().toShort()
