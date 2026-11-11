@@ -537,7 +537,7 @@ class WearableService : Service(), LifecycleOwner {
             scope = serviceScope,
             config = { _imuCoCoConfig.value },
             glassesImuStream = glassesFusedImuStream,
-            watchImuStream = watchImuStream,
+            watchImuStream = watchClient.watchFusedImuStream,
             phoneImuStream = phoneImuStream,
             wristbandImuStream = wristbandFusedImuStream,
             isGlassesActive = { _glassesState.value.isOnlineBle() },
