@@ -99,6 +99,13 @@ class ImuStreamingService : Service(), SensorEventListener {
     @Volatile private var latestQxQ14: Short = 0
     @Volatile private var latestQyQ14: Short = 0
     @Volatile private var latestQzQ14: Short = 0
+    @Volatile private var latestGxMdps: Short = 0
+    @Volatile private var latestGyMdps: Short = 0
+    @Volatile private var latestGzMdps: Short = 0
+
+    // Pareia amostras accel/gyro (taxa-mestre) com o evento de orientação
+    // fundido (GAME_ROTATION_VECTOR), que chega com ~10ms de atraso médio.
+    private val samplePairer = ImuSamplePairer()
 
     override fun onCreate() {
         super.onCreate()
@@ -250,12 +257,15 @@ class ImuStreamingService : Service(), SensorEventListener {
             Sensor.TYPE_GYROSCOPE -> {
                 // rad/s → mdps : valor * (180/π) * 1000
                 val radToMdps = 57295.78f
-                val gx = (event.values[0] * radToMdps).toInt().toShort()
-                val gy = (event.values[1] * radToMdps).toInt().toShort()
-                val gz = (event.values[2] * radToMdps).toInt().toShort()
-                emitSample(
-                    timestampUs = SystemClock.elapsedRealtimeNanos() / 1000,
-                    gx = gx, gy = gy, gz = gz,
+                latestGxMdps = (event.values[0] * radToMdps).toInt().toShort()
+                latestGyMdps = (event.values[1] * radToMdps).toInt().toShort()
+                latestGzMdps = (event.values[2] * radToMdps).toInt().toShort()
+                samplePairer.record(
+                    ImuSamplePairer.AccelGyroSample(
+                        event.timestamp,
+                        latestAxMg, latestAyMg, latestAzMg,
+                        latestGxMdps, latestGyMdps, latestGzMdps,
+                    )
                 )
             }
             Sensor.TYPE_HEART_RATE -> {
@@ -266,6 +276,17 @@ class ImuStreamingService : Service(), SensorEventListener {
                 latestQxQ14 = (event.values[0] * 16384f).toInt().toShort()
                 latestQyQ14 = (event.values[1] * 16384f).toInt().toShort()
                 latestQzQ14 = (event.values[2] * 16384f).toInt().toShort()
+
+                val paired = samplePairer.pairWith(event.timestamp)
+                if (paired != null) {
+                    latestAxMg = paired.ax
+                    latestAyMg = paired.ay
+                    latestAzMg = paired.az
+                    emitSample(
+                        timestampUs = SystemClock.elapsedRealtimeNanos() / 1000,
+                        gx = paired.gx, gy = paired.gy, gz = paired.gz,
+                    )
+                }
             }
         }
     }
