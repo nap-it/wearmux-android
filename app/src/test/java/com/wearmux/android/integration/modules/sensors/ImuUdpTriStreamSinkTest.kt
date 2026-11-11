@@ -2,8 +2,8 @@ package com.wearmux.android.integration.modules.sensors
 
 import com.wearmux.android.integration.api.ImuCoCoSinkConfig
 import com.wearmux.android.integration.protocol.GlassesFusedImuSample
-import com.wearmux.android.integration.protocol.ImuSample
 import com.wearmux.android.integration.protocol.PhoneFusedImuSample
+import com.wearmux.android.integration.protocol.WatchFusedImuSample
 import com.wearmux.android.integration.protocol.WristbandFusedImuSample
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -31,18 +31,11 @@ private class FakeTransport : ImuUdpTransport {
 
 class ImuUdpTriStreamSinkTest {
 
-    private fun imuSample(ax: Int, ay: Int, az: Int): ImuSample = ImuSample(
-        ax.toShort(), ay.toShort(), az.toShort(),
-        0, 0, 0,
-        0, 0, 0,
-        ShortArray(8),
-    )
-
     @Test
     fun `glasses sample is sent using the already-fused quaternion, with zero gravity and gyro fields`() = runTest {
         val scope = CoroutineScope(SupervisorJob() + StandardTestDispatcher(testScheduler))
         val glassesStream = MutableSharedFlow<GlassesFusedImuSample>(replay = 0, extraBufferCapacity = 16)
-        val watchStream = MutableSharedFlow<ImuSample>(replay = 0, extraBufferCapacity = 16)
+        val watchStream = MutableSharedFlow<WatchFusedImuSample>(replay = 0, extraBufferCapacity = 16)
         val phoneStream = MutableSharedFlow<PhoneFusedImuSample>(replay = 0, extraBufferCapacity = 16)
         val wristbandStream = MutableSharedFlow<WristbandFusedImuSample>(replay = 0, extraBufferCapacity = 16)
         val transport = FakeTransport()
@@ -98,7 +91,7 @@ class ImuUdpTriStreamSinkTest {
     fun `disabled config sends nothing`() = runTest {
         val scope = CoroutineScope(SupervisorJob() + StandardTestDispatcher(testScheduler))
         val glassesStream = MutableSharedFlow<GlassesFusedImuSample>(replay = 0, extraBufferCapacity = 16)
-        val watchStream = MutableSharedFlow<ImuSample>(replay = 0, extraBufferCapacity = 16)
+        val watchStream = MutableSharedFlow<WatchFusedImuSample>(replay = 0, extraBufferCapacity = 16)
         val phoneStream = MutableSharedFlow<PhoneFusedImuSample>(replay = 0, extraBufferCapacity = 16)
         val wristbandStream = MutableSharedFlow<WristbandFusedImuSample>(replay = 0, extraBufferCapacity = 16)
         val transport = FakeTransport()
@@ -120,7 +113,7 @@ class ImuUdpTriStreamSinkTest {
     fun `device stops sending once its active flag turns false, without affecting other devices`() = runTest {
         val scope = CoroutineScope(SupervisorJob() + StandardTestDispatcher(testScheduler))
         val glassesStream = MutableSharedFlow<GlassesFusedImuSample>(replay = 0, extraBufferCapacity = 16)
-        val watchStream = MutableSharedFlow<ImuSample>(replay = 0, extraBufferCapacity = 16)
+        val watchStream = MutableSharedFlow<WatchFusedImuSample>(replay = 0, extraBufferCapacity = 16)
         val phoneStream = MutableSharedFlow<PhoneFusedImuSample>(replay = 0, extraBufferCapacity = 16)
         val wristbandStream = MutableSharedFlow<WristbandFusedImuSample>(replay = 0, extraBufferCapacity = 16)
         val transport = FakeTransport()
@@ -140,7 +133,7 @@ class ImuUdpTriStreamSinkTest {
         sink.start()
         testScheduler.runCurrent()
 
-        watchStream.emit(imuSample(1, 0, 0))
+        watchStream.emit(WatchFusedImuSample(ax = 1f, ay = 0f, az = 0f, qx = 0f, qy = 0f, qz = 0f, qw = 1f))
         phoneStream.emit(PhoneFusedImuSample(ax = 1f, ay = 0f, az = 0f, qx = 0f, qy = 0f, qz = 0f, qw = 1f))
         testScheduler.advanceTimeBy(25)
         testScheduler.runCurrent()
@@ -166,7 +159,7 @@ class ImuUdpTriStreamSinkTest {
     fun `one device offline does not stop the others from sending`() = runTest {
         val scope = CoroutineScope(SupervisorJob() + StandardTestDispatcher(testScheduler))
         val glassesStream = MutableSharedFlow<GlassesFusedImuSample>(replay = 0, extraBufferCapacity = 16)
-        val watchStream = MutableSharedFlow<ImuSample>(replay = 0, extraBufferCapacity = 16)
+        val watchStream = MutableSharedFlow<WatchFusedImuSample>(replay = 0, extraBufferCapacity = 16)
         val phoneStream = MutableSharedFlow<PhoneFusedImuSample>(replay = 0, extraBufferCapacity = 16)
         val wristbandStream = MutableSharedFlow<WristbandFusedImuSample>(replay = 0, extraBufferCapacity = 16)
         val transport = FakeTransport()
@@ -195,7 +188,7 @@ class ImuUdpTriStreamSinkTest {
     fun `transport throwing on one tick does not stop subsequent ticks`() = runTest {
         val scope = CoroutineScope(SupervisorJob() + StandardTestDispatcher(testScheduler))
         val glassesStream = MutableSharedFlow<GlassesFusedImuSample>(replay = 0, extraBufferCapacity = 16)
-        val watchStream = MutableSharedFlow<ImuSample>(replay = 0, extraBufferCapacity = 16)
+        val watchStream = MutableSharedFlow<WatchFusedImuSample>(replay = 0, extraBufferCapacity = 16)
         val phoneStream = MutableSharedFlow<PhoneFusedImuSample>(replay = 0, extraBufferCapacity = 16)
         val wristbandStream = MutableSharedFlow<WristbandFusedImuSample>(replay = 0, extraBufferCapacity = 16)
         val transport = FakeTransport()
@@ -225,7 +218,7 @@ class ImuUdpTriStreamSinkTest {
     fun `phone sample is sent using the already-fused quaternion, with zero gravity and gyro fields`() = runTest {
         val scope = CoroutineScope(SupervisorJob() + StandardTestDispatcher(testScheduler))
         val glassesStream = MutableSharedFlow<GlassesFusedImuSample>(replay = 0, extraBufferCapacity = 16)
-        val watchStream = MutableSharedFlow<ImuSample>(replay = 0, extraBufferCapacity = 16)
+        val watchStream = MutableSharedFlow<WatchFusedImuSample>(replay = 0, extraBufferCapacity = 16)
         val phoneStream = MutableSharedFlow<PhoneFusedImuSample>(replay = 0, extraBufferCapacity = 16)
         val wristbandStream = MutableSharedFlow<WristbandFusedImuSample>(replay = 0, extraBufferCapacity = 16)
         val transport = FakeTransport()
@@ -274,7 +267,7 @@ class ImuUdpTriStreamSinkTest {
     fun `wristband sample is sent using the already-fused quaternion, with zero gravity and gyro fields`() = runTest {
         val scope = CoroutineScope(SupervisorJob() + StandardTestDispatcher(testScheduler))
         val glassesStream = MutableSharedFlow<GlassesFusedImuSample>(replay = 0, extraBufferCapacity = 16)
-        val watchStream = MutableSharedFlow<ImuSample>(replay = 0, extraBufferCapacity = 16)
+        val watchStream = MutableSharedFlow<WatchFusedImuSample>(replay = 0, extraBufferCapacity = 16)
         val phoneStream = MutableSharedFlow<PhoneFusedImuSample>(replay = 0, extraBufferCapacity = 16)
         val wristbandStream = MutableSharedFlow<WristbandFusedImuSample>(replay = 0, extraBufferCapacity = 16)
         val transport = FakeTransport()
@@ -312,6 +305,55 @@ class ImuUdpTriStreamSinkTest {
         assertEquals(0f, fields[4].toFloat(), 0.0001f); assertEquals(0f, fields[5].toFloat(), 0.0001f); assertEquals(0f, fields[6].toFloat(), 0.0001f)
         assertEquals(0f, fields[7].toFloat(), 0.0001f); assertEquals(0f, fields[8].toFloat(), 0.0001f); assertEquals(0f, fields[9].toFloat(), 0.0001f)
         assertEquals(0.1f, fields[10].toFloat(), 0.0001f)
+        assertEquals(0.2f, fields[11].toFloat(), 0.0001f)
+        assertEquals(0.3f, fields[12].toFloat(), 0.0001f)
+        assertEquals(0.9f, fields[13].toFloat(), 0.0001f)
+    }
+
+    @Test
+    fun `sends watch fused sample using its own quaternion, no Madgwick`() = runTest {
+        val scope = CoroutineScope(SupervisorJob() + StandardTestDispatcher(testScheduler))
+        val glassesStream = MutableSharedFlow<GlassesFusedImuSample>(replay = 0, extraBufferCapacity = 16)
+        val watchStream = MutableSharedFlow<WatchFusedImuSample>(replay = 0, extraBufferCapacity = 16)
+        val phoneStream = MutableSharedFlow<PhoneFusedImuSample>(replay = 0, extraBufferCapacity = 16)
+        val wristbandStream = MutableSharedFlow<WristbandFusedImuSample>(replay = 0, extraBufferCapacity = 16)
+        val transport = FakeTransport()
+        val config = ImuCoCoSinkConfig(enabled = true, host = "127.0.0.1", port = 8001, userId = "u1")
+
+        val sink = ImuUdpTriStreamSink(
+            scope = scope,
+            config = { config },
+            glassesImuStream = glassesStream,
+            watchImuStream = watchStream,
+            phoneImuStream = phoneStream,
+            wristbandImuStream = wristbandStream,
+            transport = transport,
+        )
+        sink.start()
+        testScheduler.runCurrent()
+
+        watchStream.emit(WatchFusedImuSample(ax = 1f, ay = 2f, az = 3f, qx = 0.1f, qy = 0.2f, qz = 0.3f, qw = 0.9f))
+        testScheduler.advanceTimeBy(25)
+        testScheduler.runCurrent()
+
+        sink.stop()
+        scope.cancel()
+
+        val (_, _, message) = transport.sent.first { it.third.contains(";watch;") }
+        assertTrue(message.startsWith("u1;watch;motion:"))
+        val fields = message.substringAfter("motion:").trim().split(" ")
+        // timestamp userAcc(3) grav(3) gyro(3) quat(4) = 14 fields total.
+        assertEquals(14, fields.size)
+        assertEquals(1f, fields[1].toFloat(), 0.0001f) // userAcc.x -- straight from the fused sample, no Madgwick
+        assertEquals(2f, fields[2].toFloat(), 0.0001f)
+        assertEquals(3f, fields[3].toFloat(), 0.0001f)
+        assertEquals(0f, fields[4].toFloat(), 0.0001f) // grav.x -- zero-filled, IMUCoCo never reads this
+        assertEquals(0f, fields[5].toFloat(), 0.0001f)
+        assertEquals(0f, fields[6].toFloat(), 0.0001f)
+        assertEquals(0f, fields[7].toFloat(), 0.0001f) // gyro.x -- zero-filled, IMUCoCo never reads this
+        assertEquals(0f, fields[8].toFloat(), 0.0001f)
+        assertEquals(0f, fields[9].toFloat(), 0.0001f)
+        assertEquals(0.1f, fields[10].toFloat(), 0.0001f) // quat.x -- straight from the fused sample, no Madgwick
         assertEquals(0.2f, fields[11].toFloat(), 0.0001f)
         assertEquals(0.3f, fields[12].toFloat(), 0.0001f)
         assertEquals(0.9f, fields[13].toFloat(), 0.0001f)

@@ -4,6 +4,8 @@ import android.content.Context
 import android.os.SystemClock
 import android.util.Log
 import com.wearmux.android.integration.protocol.ImuSample
+import com.wearmux.android.integration.protocol.WatchFusedImuSample
+import com.wearmux.android.integration.protocol.watchFusedFromRaw
 import com.google.android.gms.tasks.Tasks
 import com.google.android.gms.wearable.CapabilityClient
 import com.google.android.gms.wearable.CapabilityInfo
@@ -74,6 +76,14 @@ class WatchClient(private val context: Context) {
         extraBufferCapacity = 256,
     )
     val imuStream: SharedFlow<ImuSample> = _imuStream
+
+    /** Stream fundido do watch: já inclui o quaternion nativo (game rotation
+     *  vector) reconstruído, sem passar por Madgwick. Coexiste com [imuStream]. */
+    private val _watchFusedImuStream = MutableSharedFlow<WatchFusedImuSample>(
+        replay = 0,
+        extraBufferCapacity = 256,
+    )
+    val watchFusedImuStream: SharedFlow<WatchFusedImuSample> = _watchFusedImuStream
 
     /** Callback opcional para timestamps brutos (úteis para o TimeSyncManager). */
     var onSampleTimestampUs: ((deviceUs: Long) -> Unit)? = null
@@ -384,6 +394,9 @@ class WatchClient(private val context: Context) {
                 pressure = ShortArray(8),
             )
             _imuStream.tryEmit(sample)
+            _watchFusedImuStream.tryEmit(
+                watchFusedFromRaw(s.axMg, s.ayMg, s.azMg, s.qxQ14, s.qyQ14, s.qzQ14)
+            )
         }
         Log.i(TAG, "IMU stream ended")
     }
