@@ -294,7 +294,7 @@ class ImuUdpTriStreamSinkTest {
 
         wristbandStream.emit(
             WristbandFusedImuSample(
-                ax = 1, ay = 2, az = 3,
+                ax = 1f, ay = 2f, az = 3f,
                 qx = 0.1f, qy = 0.2f, qz = 0.3f, qw = 0.9f,
             ),
         )

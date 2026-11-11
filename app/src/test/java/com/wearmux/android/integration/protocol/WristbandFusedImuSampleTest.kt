@@ -19,7 +19,10 @@ class WristbandFusedImuSampleTest {
 
         assertNotNull(result?.fused)
         val sample = result!!.fused!!
-        assertEquals(100.toShort(), sample.ax); assertEquals(200.toShort(), sample.ay); assertEquals(300.toShort(), sample.az)
+        // Scaled by the BNO085 SH-2 Q8 convention (/256) for linearAcceleration reports.
+        assertEquals(100f / 256f, sample.ax, 0.001f)
+        assertEquals(200f / 256f, sample.ay, 0.001f)
+        assertEquals(300f / 256f, sample.az, 0.001f)
         // Scaled by the BNO085 Q-point convention (/16384), confirmed against real hardware in Task 8.
         assertEquals(0.1f, sample.qx, 0.001f); assertEquals(0.2f, sample.qy, 0.001f)
         assertEquals(0.3f, sample.qz, 0.001f); assertEquals(0.9f, sample.qw, 0.001f)

@@ -38,6 +38,12 @@
             android:name="com.google.android.wearable.standalone"
             android:value="true" />
 
+        <!-- Expõe o string-array de wear.xml ao Play Services, que é
+             quem anuncia a capability ao outro nó do Data Layer. -->
+        <meta-data
+            android:name="com.google.android.gms.wearable.CAPABILITY"
+            android:value="@array/android_wear_capabilities" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

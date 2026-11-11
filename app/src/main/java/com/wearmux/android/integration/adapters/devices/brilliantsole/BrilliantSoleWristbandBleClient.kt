@@ -626,12 +626,13 @@ class BrilliantSoleWristbandBleClient(private val context: Context) : BrilliantS
                                     lastQz = readInt16LE(data, offset + 4)
                                     lastQw = readInt16LE(data, offset + 6)
                                     if (hasLinAcc) {
-                                        val scale = com.wearmux.android.integration.protocol.WRISTBAND_QUATERNION_SCALE
+                                        val qScale = com.wearmux.android.integration.protocol.WRISTBAND_QUATERNION_SCALE
+                                        val aScale = com.wearmux.android.integration.protocol.WRISTBAND_ACCELERATION_SCALE
                                         onWristbandFusedSample?.invoke(
                                             com.wearmux.android.integration.protocol.WristbandFusedImuSample(
-                                                ax = lastLinAccX, ay = lastLinAccY, az = lastLinAccZ,
-                                                qx = lastQx * scale, qy = lastQy * scale,
-                                                qz = lastQz * scale, qw = lastQw * scale,
+                                                ax = lastLinAccX * aScale, ay = lastLinAccY * aScale, az = lastLinAccZ * aScale,
+                                                qx = lastQx * qScale, qy = lastQy * qScale,
+                                                qz = lastQz * qScale, qw = lastQw * qScale,
                                             )
                                         )
                                     }

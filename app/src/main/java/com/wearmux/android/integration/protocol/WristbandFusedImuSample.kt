@@ -4,10 +4,10 @@ package com.wearmux.android.integration.protocol
  * One fused IMU sample from the wristband (BrilliantSole), already processed
  * by the device's own on-board sensor fusion -- no Madgwick on the Android side.
  *
- * [ax, ay, az] are raw int16 straight off the wire, same convention [ImuSample]
- * already uses for accel/gyro/mag on this device -- no fixed-point scale is
- * applied, since this device never stores or applies the MSG_GET_SENSOR_SCALARS
- * response either.
+ * [ax, ay, az] are scaled by the BNO085 SH-2 Q8 convention (/256), the fixed-point
+ * scale the chip's LINEAR_ACCELERATION report uses (confirmed against the ceva-dsp/sh2
+ * reference decoder). Sending the raw int16 unscaled made the acceleration ~256x too
+ * large downstream.
  *
  * [qx, qy, qz, qw] are scaled by the BNO085 Q-point convention (/16384), confirmed
  * against real hardware during Task 8's validation: this chip uses the same
@@ -15,9 +15,12 @@ package com.wearmux.android.integration.protocol
  * (wrong) assumption that no scale applied here.
  */
 data class WristbandFusedImuSample(
-    val ax: Short, val ay: Short, val az: Short,
+    val ax: Float, val ay: Float, val az: Float,
     val qx: Float, val qy: Float, val qz: Float, val qw: Float,
 )
+
+/** BNO085 SH-2 Q8 scale for LINEAR_ACCELERATION reports. */
+const val WRISTBAND_ACCELERATION_SCALE = 1f / 256f
 
 /** Same Q-point scale the glasses' BNO085 already applies to its GAME_ROTATION samples. */
 const val WRISTBAND_QUATERNION_SCALE = 1f / 16384f
@@ -77,11 +80,12 @@ fun parseWristbandSensorData(data: ByteArray): WristbandFusedParseResult? {
     }
 
     val fused = if (linAccel != null && gameRotation != null) {
-        val scale = WRISTBAND_QUATERNION_SCALE
+        val qScale = WRISTBAND_QUATERNION_SCALE
+        val aScale = WRISTBAND_ACCELERATION_SCALE
         WristbandFusedImuSample(
-            ax = linAccel.first, ay = linAccel.second, az = linAccel.third,
-            qx = gameRotation[0] * scale, qy = gameRotation[1] * scale,
-            qz = gameRotation[2] * scale, qw = gameRotation[3] * scale,
+            ax = linAccel.first * aScale, ay = linAccel.second * aScale, az = linAccel.third * aScale,
+            qx = gameRotation[0] * qScale, qy = gameRotation[1] * qScale,
+            qz = gameRotation[2] * qScale, qw = gameRotation[3] * qScale,
         )
     } else null
 
