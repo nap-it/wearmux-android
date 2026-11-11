@@ -78,6 +78,10 @@ class ImuStreamingService : Service(), SensorEventListener {
     private var channel: ChannelClient.Channel? = null
     private var output: OutputStream? = null
 
+    private val gameRotationSensor: Sensor? by lazy {
+        sensorManager.getDefaultSensor(Sensor.TYPE_GAME_ROTATION_VECTOR)
+    }
+
     // Buffer de chunk: 16 amostras × 32B
     private val chunkBuffer = ByteBuffer.allocate(CHUNK_SIZES * WatchProtocol.IMU_SAMPLE_SIZE)
         .order(ByteOrder.LITTLE_ENDIAN)
@@ -92,6 +96,9 @@ class ImuStreamingService : Service(), SensorEventListener {
     @Volatile private var latestMxX10: Short = 0
     @Volatile private var latestMyX10: Short = 0
     @Volatile private var latestMzX10: Short = 0
+    @Volatile private var latestQxQ14: Short = 0
+    @Volatile private var latestQyQ14: Short = 0
+    @Volatile private var latestQzQ14: Short = 0
 
     override fun onCreate() {
         super.onCreate()
@@ -217,6 +224,9 @@ class ImuStreamingService : Service(), SensorEventListener {
         sensorManager.getDefaultSensor(Sensor.TYPE_HEART_RATE)?.let {
             sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
         }
+        gameRotationSensor?.let {
+            sensorManager.registerListener(this, it, periodUs)
+        } ?: Log.w(TAG, "GAME_ROTATION_VECTOR sensor not available")
     }
 
     private fun unregisterSensors() {
@@ -252,6 +262,11 @@ class ImuStreamingService : Service(), SensorEventListener {
                 val bpm = event.values.firstOrNull()?.toInt() ?: return
                 if (bpm in 30..220) sendHeartRate(bpm)
             }
+            Sensor.TYPE_GAME_ROTATION_VECTOR -> {
+                latestQxQ14 = (event.values[0] * 16384f).toInt().toShort()
+                latestQyQ14 = (event.values[1] * 16384f).toInt().toShort()
+                latestQzQ14 = (event.values[2] * 16384f).toInt().toShort()
+            }
         }
     }
 
@@ -280,6 +295,7 @@ class ImuStreamingService : Service(), SensorEventListener {
                 latestAxMg, latestAyMg, latestAzMg,
                 gx, gy, gz,
                 latestMxX10, latestMyX10, latestMzX10,
+                latestQxQ14, latestQyQ14, latestQzQ14,
             )
             chunkCount++
             if (chunkCount >= CHUNK_SIZES) {
