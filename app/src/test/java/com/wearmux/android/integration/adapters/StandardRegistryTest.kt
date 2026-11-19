@@ -37,14 +37,15 @@ class StandardRegistryTest {
         serviceData = emptyMap(),
         raw = null,
     )
-
     private fun profile(
         chars: Set<UUID> = emptySet(),
         probes: Map<String, Any?> = emptyMap(),
         name: String = "Device",
-        deviceId: String = "AA:BB:CC:DD:EE:FF"
+        deviceId: String = "AA:BB:CC:DD:EE:FF",
+        uuids: Set<UUID> = emptySet(),
+        mfgType: Int? = null,
     ) = WearableConnectedDeviceProfile(
-        scan = scan(name = name, deviceId = deviceId),
+        scan = scan(name = name, deviceId = deviceId, uuids = uuids, mfgType = mfgType),
         discoveredServices = emptySet(),
         discoveredCharacteristics = chars,
         firmwareVersion = null,
@@ -94,9 +95,13 @@ class StandardRegistryTest {
         assertTrue(registry.selectProbable(scan(uuids = setOf(unknown))).isEmpty())
     }
 
+    /**
+     * `confirm` resolve o adapter pelo **tipo** do dispositivo
+     * (`DeviceType.fromScan`), por isso o scan tem de identificar o tipo.
+     */
     @Test
     fun photoDataChar_confirmsOmiAdapter() {
-        val result = registry.confirm(profile(chars = setOf(photoDataUuid)))
+        val result = registry.confirm(profile(chars = setOf(photoDataUuid), mfgType = 4))
         assertEquals("omi-glasses", result?.id)
     }
 
@@ -106,6 +111,7 @@ class StandardRegistryTest {
             profile(
                 chars = setOf(sdkRxUuid, sdkTxUuid),
                 probes = mapOf("sdkDeviceType" to 4),
+                mfgType = 4,
             ),
         )
         assertEquals("omi-glasses", result?.id)
@@ -117,6 +123,7 @@ class StandardRegistryTest {
             profile(
                 chars = setOf(sdkRxUuid, sdkTxUuid),
                 probes = mapOf("sdkDeviceType" to 0),
+                uuids = setOf(sdkOmiUuid),
             ),
         )
         assertEquals("brilliant-sole-wristband", result?.id)
@@ -124,7 +131,7 @@ class StandardRegistryTest {
 
     @Test
     fun sdkCharsNoProbe_confirmsSoleAdapter() {
-        val result = registry.confirm(profile(chars = setOf(sdkRxUuid, sdkTxUuid)))
+        val result = registry.confirm(profile(chars = setOf(sdkRxUuid, sdkTxUuid), uuids = setOf(sdkOmiUuid)))
         assertEquals("brilliant-sole-wristband", result?.id)
     }
 

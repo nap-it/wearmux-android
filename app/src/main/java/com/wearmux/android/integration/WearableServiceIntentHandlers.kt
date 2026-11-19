@@ -87,7 +87,7 @@ internal fun WearableService.handleStopMicrophone() {
 internal fun WearableService.adjustStreamFps(audioActive: Boolean, suffix: String) {
     if (!WearableService._isStreaming.value) return
     val fps = streamTargetFps(audioActive)
-    glassesBleClient.updateStreamTargetFps(fps)
+    glassesBleClient?.updateStreamTargetFps(fps)
     WearableService.appendLog("🎬 Stream ${if (audioActive) "adjusted" else "restored"} to ${fps}fps ($suffix)")
 }
 
@@ -98,7 +98,7 @@ internal fun WearableService.handleStartAudioRecording() {
     WearableService._audioRecordingActive.value = true
     WearableService.appendLog("🎙️ Audio recording started"); updateWristbandTrafficProfile("audio recording started")
     if (WearableService._isStreaming.value) {
-        val fps = streamTargetFps(audioActive = true); glassesBleClient.updateStreamTargetFps(fps)
+        val fps = streamTargetFps(audioActive = true); glassesBleClient?.updateStreamTargetFps(fps)
         WearableService.appendLog("🎬 Stream adjusted to ${fps}fps during audio recording")
     }
     if (!WearableService._glassesMicStreaming.value) {
@@ -117,7 +117,7 @@ internal fun WearableService.handleStopAudioRecording() {
     } ?: WearableService.appendLog("⚠  Recording discarded (no data)")
     updateWristbandTrafficProfile("audio recording stopped")
     if (WearableService._isStreaming.value) {
-        val fps = streamTargetFps(); glassesBleClient.updateStreamTargetFps(fps)
+        val fps = streamTargetFps(); glassesBleClient?.updateStreamTargetFps(fps)
         WearableService.appendLog("🎬 Stream restored to ${fps}fps")
     }
 }
@@ -145,11 +145,11 @@ internal fun WearableService.handleApplyGlassesCameraProfile(intent: Intent) {
     val rateMs = intent.getIntExtra(EXTRA_CAMERA_RATE_MS, -1).takeIf { it > 0 }
     if (resolution == null && quality == null && rateMs == null) { WearableService.appendLog("⚠  Invalid camera profile"); return }
     val wasStreaming = WearableService._isStreaming.value
-    if (wasStreaming) glassesBleClient.setStreamMode(false)
-    glassesBleClient.applyCameraSettings(resolution, quality, rateMs)
+    if (wasStreaming) glassesBleClient?.setStreamMode(false)
+    glassesBleClient?.applyCameraSettings(resolution, quality, rateMs)
     glassesCameraManager.resetState("camera profile change")
     if (wasStreaming) serviceScope.launch {
-        delay(800); glassesBleClient.setStreamMode(true, streamTargetFps())
+        delay(800); glassesBleClient?.setStreamMode(true, streamTargetFps())
         WearableService.appendLog("🎬 Stream restarted with new profile")
     }
 }
@@ -166,7 +166,7 @@ internal fun WearableService.handleConnectUdp() {
     val ip = WearableService._glassesIp.value
     if (ip.isNullOrBlank()) {
         WearableService.appendLog("⚠  No known Wi-Fi IP for the Omi; forcing enable + poll")
-        glassesBleClient.sendWifiEnabled(true); glassesBleClient.requestWifiInfo()
+        glassesBleClient?.sendWifiEnabled(true); glassesBleClient?.requestWifiInfo()
         startWifiTransitionWatchdog()
     } else connectUdp(ip)
 }
@@ -187,7 +187,7 @@ internal fun WearableService.handleSetGlassesConnectionMode(intent: Intent) {
             startFilteredConnect(WearableKind.GLASSES, "Omi")
         }
     }
-    if (WearableService._isStreaming.value) glassesBleClient.updateStreamTargetFps(streamTargetFps())
+    if (WearableService._isStreaming.value) glassesBleClient?.updateStreamTargetFps(streamTargetFps())
 }
 
 internal fun WearableService.handleStartStream() {
@@ -280,7 +280,7 @@ internal fun WearableService.handleSendWifi(intent: Intent) {
 }
 
 internal fun WearableService.handleWakeCamera() {
-    if (WearableService._glassesState.value.isOnlineBle()) { glassesBleClient.wakeCamera(); WearableService.appendLog("📷 Camera is always on with this firmware") }
+    if (WearableService._glassesState.value.isOnlineBle()) { glassesBleClient?.wakeCamera(); WearableService.appendLog("📷 Camera is always on with this firmware") }
     else WearableService.appendLog("⚠  Camera: Omi is not connected (${WearableService._glassesState.value.name})")
 }
 

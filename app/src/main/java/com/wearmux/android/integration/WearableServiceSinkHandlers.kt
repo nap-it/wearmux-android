@@ -2,6 +2,7 @@ package com.wearmux.android.integration
 
 import android.util.Log
 import com.wearmux.android.integration.adapters.BleDeviceState
+import com.wearmux.android.integration.adapters.WearableId
 import com.wearmux.android.integration.protocol.GlassesImuSample
 import com.wearmux.android.integration.protocol.ImuSample
 import com.wearmux.android.integration.safety.CloudSafetyDecision
@@ -88,17 +89,33 @@ internal fun WearableService.refreshGlassesMicPlaybackSupport() {
     WearableService._glassesMicPlaybackSupported.value = glassesMicrophoneManager.canMonitorLocally()
 }
 
-internal fun WearableService.handleWristbandImuSample(sample: ImuSample, timestampRaw16: Int, timestampEstimatedMs: Long) {
-    WearableService._latestImuSamples.update { (it + sample).takeLast(40) }
+internal fun WearableService.handleWristbandImuSample(id: WearableId, sample: ImuSample, timestampRaw16: Int, timestampEstimatedMs: Long) {
     val tsMs = if (timestampRaw16 != 0) timestampEstimatedMs else System.currentTimeMillis()
-    WearableService._wristbandImuStream.tryEmit(com.wearmux.android.integration.protocol.WristbandImuSample(sample, tsMs))
-    coAxialImuFusion.feedWristband(sample, tsMs)
+    // A fusão co-axial tem UMA fonte de pulso. Com várias pulseiras ligadas,
+    // a primeira a entregar IMU é a primária; as outras **não** são
+    // misturadas nela — cada wearable mantém a sua informação.
+    val primary = primaryWristbandId
+        ?: id.also { primaryWristbandId = it }
+    if (id == primary) {
+        // Caminhos legados (PDR, diagnóstico de movimento, latência) mantêm o
+        // comportamento de antes: uma única fonte de pulso.
+        WearableService._latestImuSamples.update { (it + sample).takeLast(40) }
+        coAxialImuFusion.feedWristband(sample, tsMs)
+    }
+    // Estado IMU **por dispositivo**: TODOS os dispositivos são registados,
+    // cada um com o seu contador, taxa e última amostra.
+    recordImuSample(id, sample)
+    // O stream público identifica o emissor, para que cada consumidor possa
+    // filtrar pela pulseira que lhe interessa.
+    WearableService._wristbandImuStream.tryEmit(
+        com.wearmux.android.integration.protocol.WristbandImuSample(sample, tsMs, id.raw),
+    )
     val tsRaw = timestampRaw16.takeUnless { it == 0 }
     runImuCloudLatencyPipeline("wristband_ble", sample, tsRaw, if (tsRaw != null) timestampEstimatedMs else null)
     when (WearableService._mlProcessingLocation.value) {
         MlProcessingLocation.APP -> onDeviceClassifier?.addSample(sample, timestampEstimatedMs)?.let {
             latestInferenceClass = it.label; latestInferenceScore = it.score
-            latestInferenceTsMs = it.timestampMs; WearableService.wristbandActivity.value = it.label
+            latestInferenceTsMs = it.timestampMs; onWristbandActivityChanged(id, it.label)
         }
         MlProcessingLocation.SERVER -> {
             val classifier = serverClassifier ?: return
@@ -109,7 +126,7 @@ internal fun WearableService.handleWristbandImuSample(sample: ImuSample, timesta
                 serverInferenceInFlight.set(false)
                 if (result != null && WearableService._mlProcessingLocation.value == MlProcessingLocation.SERVER) {
                     latestInferenceClass = result.label; latestInferenceScore = result.score
-                    latestInferenceTsMs = timestampEstimatedMs; WearableService.wristbandActivity.value = result.label
+                    latestInferenceTsMs = timestampEstimatedMs; onWristbandActivityChanged(id, result.label)
                 }
             }
         }
@@ -117,10 +134,10 @@ internal fun WearableService.handleWristbandImuSample(sample: ImuSample, timesta
     }
 }
 
-internal fun WearableService.handleWristbandTfliteInference(label: String, score: Float, timestampEstimatedMs: Long, @Suppress("UNUSED_PARAMETER") values: FloatArray) {
+internal fun WearableService.handleWristbandTfliteInference(id: WearableId, label: String, score: Float, timestampEstimatedMs: Long, @Suppress("UNUSED_PARAMETER") values: FloatArray) {
     if (WearableService._mlProcessingLocation.value != MlProcessingLocation.WRISTBAND) return
     latestInferenceClass = label; latestInferenceScore = score
-    latestInferenceTsMs = timestampEstimatedMs; WearableService.wristbandActivity.value = label
+    latestInferenceTsMs = timestampEstimatedMs; onWristbandActivityChanged(id, label)
 }
 
 internal fun WearableService.mirrorDecisionForUi(decision: CloudSafetyDecision) {

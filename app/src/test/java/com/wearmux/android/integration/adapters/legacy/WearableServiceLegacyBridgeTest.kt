@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -56,11 +57,12 @@ class WearableServiceLegacyBridgeTest {
         val hub = FakeWearableHub()
         val (session, client) = makeSoleSession(scope = backgroundScope)
         var capturedBattery: Int? = null
+        var capturedId: WearableId? = null
         val bridge = WearableServiceLegacyBridge(
             hub = hub,
             scope = this,
             callbacks = WearableServiceLegacyBridge.Callbacks(
-                onWristbandBattery = { capturedBattery = it },
+                onWristbandBattery = { id, battery -> capturedId = id; capturedBattery = battery },
             ),
         )
 
@@ -72,6 +74,41 @@ class WearableServiceLegacyBridgeTest {
         advanceUntilIdle()
 
         assertEquals(55, capturedBattery)
+        // O callback identifica **a que** pulseira o valor pertence.
+        assertEquals(wristbandId, capturedId)
+        bridge.stop()
+    }
+
+    /**
+     * Duas pulseiras ligadas são **duas** entradas distintas: o callback
+     * recebe o MAC de cada uma, para a UI poder mostrar dois objectos.
+     */
+    @Test
+    fun twoWristbandSessions_reportTheirOwnIdentity() = runTest {
+        val hub = FakeWearableHub()
+        val secondId = WearableId("CC:11:22:33:44:55")
+        val (sessionA, clientA) = makeSoleSession(scope = backgroundScope)
+        val (sessionB, clientB) = makeSoleSession(scope = backgroundScope, id = secondId)
+
+        val seenIds = mutableListOf<WearableId>()
+        val bridge = WearableServiceLegacyBridge(
+            hub = hub,
+            scope = this,
+            callbacks = WearableServiceLegacyBridge.Callbacks(
+                onWristbandDevice = { snapshot -> seenIds += WearableId(snapshot.id) },
+            ),
+        )
+
+        bridge.start()
+        hub.setSessions(sessionA, sessionB)
+        advanceUntilIdle()
+
+        clientA.simulateBattery(21)
+        clientB.simulateBattery(42)
+        advanceUntilIdle()
+
+        assertTrue("ambas as pulseiras devem ser reportadas", seenIds.contains(wristbandId))
+        assertTrue("ambas as pulseiras devem ser reportadas", seenIds.contains(secondId))
         bridge.stop()
     }
 
@@ -115,7 +152,7 @@ class WearableServiceLegacyBridgeTest {
             scope = this,
             callbacks = WearableServiceLegacyBridge.Callbacks(
                 onGlassesAudioCodecId = { codecCount++ },
-                onWristbandBattery = { batteryCount++ },
+                onWristbandBattery = { _, battery -> batteryCount++ },
             ),
         )
 
@@ -149,11 +186,12 @@ class WearableServiceLegacyBridgeTest {
 
     private fun makeSoleSession(
         scope: CoroutineScope,
+        id: WearableId = wristbandId,
     ): Pair<BrilliantSoleWristbandWearableSession, FakeBrilliantSoleWristbandBleClient> {
         val client = FakeBrilliantSoleWristbandBleClient()
         val session = BrilliantSoleWristbandWearableSession(
-            id = wristbandId,
-            profile = deviceProfile(scan = scanCandidate(id = wristbandId.raw, name = "BrilliantSole")),
+            id = id,
+            profile = deviceProfile(scan = scanCandidate(id = id.raw, name = "BrilliantSole")),
             client = client,
             scope = scope,
         )

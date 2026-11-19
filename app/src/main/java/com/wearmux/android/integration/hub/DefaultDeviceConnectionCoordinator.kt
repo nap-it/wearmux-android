@@ -4,7 +4,7 @@ import com.wearmux.android.integration.adapters.WearableAdapter
 import com.wearmux.android.integration.adapters.WearableScanCandidate
 import com.wearmux.android.integration.adapters.WearableSession
 import kotlinx.coroutines.CoroutineScope
-
+import android.util.Log
 class DefaultDeviceConnectionCoordinator(
     private val registry: WearableAdapterRegistry,
 ) : DeviceConnectionCoordinator {
@@ -13,6 +13,7 @@ class DefaultDeviceConnectionCoordinator(
         scan: WearableScanCandidate,
         scope: CoroutineScope,
     ): Result<WearableSession> {
+        Log.d("WearMux", "Tentando conectar: ${scan.id.raw}")
         val probableAdapters = registry.selectProbable(scan)
         if (probableAdapters.isEmpty()) {
             return Result.failure(IllegalStateException("No adapter matches scan candidate ${scan.id.raw}"))

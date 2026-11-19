@@ -1,5 +1,7 @@
 package com.wearmux.android.integration
 
+import com.wearmux.android.integration.adapters.devices.brilliantsole.BrilliantSoleWristbandWearableSession
+
 import android.app.Service
 import android.content.Context
 import android.content.Intent
@@ -14,6 +16,7 @@ import com.wearmux.android.integration.CloudConfig
 import com.wearmux.android.integration.adapters.BleDeviceState
 import com.wearmux.android.integration.adapters.CommandResult
 import com.wearmux.android.integration.adapters.WearableCommand
+import com.wearmux.android.integration.adapters.WearableDeviceSnapshot
 import com.wearmux.android.integration.adapters.WearableId
 import com.wearmux.android.integration.adapters.WearableRealtimeSink
 import com.wearmux.android.integration.adapters.devices.brilliantsole.BrilliantSoleWristbandBleClient
@@ -22,6 +25,7 @@ import com.wearmux.android.integration.adapters.devices.brilliantsole.BrilliantS
 import com.wearmux.android.integration.adapters.devices.omi.OmiGlassesBleClientApi
 import com.wearmux.android.integration.adapters.devices.omi.OmiGlassesWearableAdapter
 import com.wearmux.android.integration.adapters.legacy.WearableServiceLegacyBridge
+import com.wearmux.android.integration.protocol.DeviceImuState
 import com.wearmux.android.integration.api.AtcllClient
 import com.wearmux.android.integration.api.CloudLatencyReporter
 import com.wearmux.android.integration.api.MqttConfig
@@ -77,6 +81,8 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
 data class CapturedPhoto(val bitmap: android.graphics.Bitmap, val timestamp: String, val index: Int)
@@ -161,6 +167,45 @@ class WearableService : Service(), LifecycleOwner {
 
         internal val _glassesState = MutableStateFlow(BleDeviceState.DISCONNECTED); val glassesState: StateFlow<BleDeviceState> = _glassesState
         internal val _wristbandState = MutableStateFlow(BleDeviceState.DISCONNECTED); val wristbandState: StateFlow<BleDeviceState> = _wristbandState
+
+        /**
+         * Uma entrada por sessão de pulseira activa — com duas pulseiras ligadas
+         * há duas entradas, cada uma com o seu MAC address.
+         *
+         * [_wristbandState] continua a existir para os consumidores legados
+         * (tráfego, ML, vibração de alertas): é o **agregado** deste mapa, não
+         * uma pulseira em concreto.
+         */
+        internal val _wristbandDevices = MutableStateFlow<List<WearableDeviceSnapshot>>(emptyList())
+        val wristbandDevices: StateFlow<List<WearableDeviceSnapshot>> = _wristbandDevices.asStateFlow()
+
+        /** Mesma ideia para os óculos: uma entrada por sessão activa. */
+        internal val _glassesDevices = MutableStateFlow<List<WearableDeviceSnapshot>>(emptyList())
+        val glassesDevices: StateFlow<List<WearableDeviceSnapshot>> = _glassesDevices.asStateFlow()
+
+        /**
+         * Eventos de **todos** os dispositivos, já identificados.
+         *
+         * É o canal genérico: cada evento chega com o [com.wearmux.android.integration.adapters.WearableId]
+         * da sessão que o emitiu, pelo que o IMU (e o resto) de duas pulseiras
+         * pode ser consumido em separado.
+         */
+        internal val _deviceEvents = MutableSharedFlow<DeviceEvent>(
+            replay = 0,
+            extraBufferCapacity = 256,
+            onBufferOverflow = BufferOverflow.DROP_OLDEST,
+        )
+        val deviceEvents: SharedFlow<DeviceEvent> = _deviceEvents.asSharedFlow()
+
+        /**
+         * Último estado IMU **por dispositivo** (chaveado pelo MAC).
+         *
+         * Actualiza à taxa do sensor — usar apenas em ecrãs de diagnóstico,
+         * não na lista de dispositivos (que se recompõe a cada amostra).
+         */
+        internal val _imuByDevice = MutableStateFlow<Map<String, DeviceImuState>>(emptyMap())
+        val imuByDevice: StateFlow<Map<String, DeviceImuState>> = _imuByDevice.asStateFlow()
+
         internal val _esp32State = MutableStateFlow(BleDeviceState.DISCONNECTED); val esp32State: StateFlow<BleDeviceState> = _esp32State
         val wristbandActivity = MutableStateFlow("Waiting for inference...")
         internal val _mlProcessingLocation = MutableStateFlow(MlProcessingLocation.APP); val mlProcessingLocation: StateFlow<MlProcessingLocation> = _mlProcessingLocation
@@ -350,7 +395,7 @@ class WearableService : Service(), LifecycleOwner {
 
     internal val wifiUdpRecovery by lazy {
         com.wearmux.android.integration.udp.WifiUdpRecoveryCoordinator(
-            scope = serviceScope, glassesClient = { glassesBleClient }, wifiLock = udpWifiLock,
+            scope = serviceScope, glassesClient = { glassesBleClient ?: throw IllegalStateException("Omi not connected") }, wifiLock = udpWifiLock,
             streamTargetFps = ::streamTargetFps, onLog = ::appendLog, callbacks = wifiUdpCallbacks,
         )
     }
@@ -360,7 +405,7 @@ class WearableService : Service(), LifecycleOwner {
     internal val scanAndConnect by lazy {
         com.wearmux.android.integration.hub.DeviceDiscoveryCoordinator(
             serviceScope, deviceHub, capabilityScanner,
-            { _glassesState.value }, { _wristbandState.value }, ::appendLog,
+            { _glassesState.value }, ::appendLog,
         )
     }
     internal var glassesMicFrameCount = 0L
@@ -371,6 +416,31 @@ class WearableService : Service(), LifecycleOwner {
     internal var audioRecordSampleRate = 16_000
     internal val streamFpsTimestamps = mutableListOf<Long>()
     internal var wristbandSensorRateAppliedMs = -1
+
+    /**
+     * Estado por sessão de pulseira (chaveado pelo MAC).
+     *
+     * Os flows globais [_wristbandState]/[_wristbandBattery]/
+     * [_wristbandFirmware] são o agregado destes mapas — ver
+     * `WearableServiceDeviceState.kt`.
+     */
+    internal val wristbandStatesById = mutableMapOf<WearableId, BleDeviceState>()
+    internal val wristbandBatteryById = mutableMapOf<WearableId, Int>()
+    internal val wristbandFirmwareById = mutableMapOf<WearableId, String>()
+    /** Actividade ML por pulseira (chaveada pelo MAC). */
+    internal val wristbandActivityById = mutableMapOf<WearableId, String>()
+
+    /** Contadores IMU por dispositivo (chaveados pelo MAC). */
+    internal val imuTracker = com.wearmux.android.integration.modules.sensors.DeviceImuTracker()
+
+    /**
+     * Pulseira que alimenta a fusão co-axial.
+     *
+     * A fusão tem **uma** fonte de pulso: com várias pulseiras ligadas, uma é
+     * a primária e as restantes **não** são misturadas nela — cada wearable
+     * mantém os seus próprios dados (ver `_imuByDevice`).
+     */
+    @Volatile internal var primaryWristbandId: WearableId? = null
     @Volatile internal var photoCaptureInFlight = false
     internal var photoCaptureTimeoutJob: Job? = null
 
@@ -443,8 +513,13 @@ class WearableService : Service(), LifecycleOwner {
         )
     }
 
-    internal lateinit var glassesWearableAdapter: OmiGlassesWearableAdapter
-    internal lateinit var wristbandWearableAdapter: BrilliantSoleWristbandWearableAdapter
+    /**
+     * Identifica uma pulseira pelo `adapterId` da **sessão** — o `DeviceHub`
+     * guarda sessões ([com.wearmux.android.integration.adapters.WearableSession]),
+     * não adapters. Um `filterIsInstance` sobre as sessões por um adapter nunca
+     * casa, pelo que a antiga property `wristbandWearableAdapter` lançava
+     * sempre que era acedida.
+     */
     internal lateinit var deviceHub: DefaultDeviceHub
     internal var wearableBridge: WearableServiceLegacyBridge? = null
     internal val wearableRealtimeSink = object : WearableRealtimeSink {
@@ -459,10 +534,10 @@ class WearableService : Service(), LifecycleOwner {
         }
         override fun onImuPacket(id: WearableId, bytes: ByteArray) = handleGlassesImuPacket(bytes)
         override fun onImuSample(id: WearableId, sample: ImuSample, timestampRaw16: Int, timestampEstimatedMs: Long) =
-            handleWristbandImuSample(sample, timestampRaw16, timestampEstimatedMs)
+            handleWristbandImuSample(id, sample, timestampRaw16, timestampEstimatedMs)
         override fun onQuaternion(id: WearableId, quaternion: FloatArray) = handleGlassesQuaternion(quaternion)
         override fun onTfliteInference(id: WearableId, label: String, score: Float, timestampEstimatedMs: Long, values: FloatArray) =
-            handleWristbandTfliteInference(label, score, timestampEstimatedMs, values)
+            handleWristbandTfliteInference(id, label, score, timestampEstimatedMs, values)
     }
     internal val legacyGlassesClientId = WearableId("__legacy_omi__")
     internal val legacyWristbandClientId = WearableId("__legacy_sole__")
@@ -573,18 +648,57 @@ class WearableService : Service(), LifecycleOwner {
         dispatcher.onServicePreSuperOnBind()
         return null
     }
-
     internal fun currentSessionId(adapterId: String): WearableId? =
         if (!::deviceHub.isInitialized) null
         else deviceHub.sessions.value.values.firstOrNull { it.adapterId == adapterId }?.id
+
     internal fun currentGlassesSessionId(): WearableId? = currentSessionId(OmiGlassesWearableAdapter.ADAPTER_ID)
+    
     internal fun currentWristbandSessionId(): WearableId? = currentSessionId(BrilliantSoleWristbandWearableAdapter.ADAPTER_ID)
-    internal fun currentGlassesClient(): OmiGlassesBleClientApi? = currentGlassesSessionId()?.let { glassesWearableAdapter.getOrCreateClient(it) }
-    internal fun currentWristbandClient(): BrilliantSoleWristbandBleClientApi? = currentWristbandSessionId()?.let { wristbandWearableAdapter.getOrCreateClient(it) }
-    internal val glassesBleClient: OmiGlassesBleClientApi
-        get() = currentGlassesClient() ?: glassesWearableAdapter.getOrCreateClient(legacyGlassesClientId)
-    internal val wristbandBleClient: BrilliantSoleWristbandBleClientApi
-        get() = currentWristbandClient() ?: wristbandWearableAdapter.getOrCreateClient(legacyWristbandClientId)
+
+    // Novo: Procura a sessão ativa no DeviceHub e extrai o cliente correspondente
+    internal fun currentGlassesClient(): OmiGlassesBleClientApi? {
+        val session = deviceHub.sessions.value.values.firstOrNull { it.adapterId == OmiGlassesWearableAdapter.ADAPTER_ID }
+        return (session as? com.wearmux.android.integration.adapters.devices.omi.OmiGlassesWearableSession)?.client
+    }
+
+    internal fun currentWristbandClient(): BrilliantSoleWristbandBleClientApi? {
+        val session = deviceHub.sessions.value.values.firstOrNull { it.adapterId == BrilliantSoleWristbandWearableAdapter.ADAPTER_ID }
+        return (session as? BrilliantSoleWristbandWearableSession)?.client
+    }
+
+    /**
+     * Todas as pulseiras ligadas, não só a primeira.
+     *
+     * Com várias pulseiras em simultâneo, os comandos que devem chegar a
+     * **todas** (perfil de tráfego IMU, vibração de alertas de segurança) têm
+     * de iterar esta lista — antes só a primeira sessão era alcançada.
+     */
+    internal fun currentWristbandClients(): List<BrilliantSoleWristbandBleClientApi> {
+        if (!::deviceHub.isInitialized) return emptyList()
+        return deviceHub.sessions.value.values
+            .filterIsInstance<BrilliantSoleWristbandWearableSession>()
+            .map { it.client }
+    }
+
+    /** Sessão de pulseira com um MAC específico (usado para desligar uma só). */
+    internal fun wristbandSessionId(mac: String): WearableId? {
+        if (!::deviceHub.isInitialized) return null
+        return deviceHub.sessions.value.values
+            .firstOrNull { it.adapterId == BrilliantSoleWristbandWearableAdapter.ADAPTER_ID && it.id.raw == mac }
+            ?.id
+    }
+
+    val WearableService.glassesBleClient: OmiGlassesBleClientApi?
+    get() = deviceHub.sessions.value.values
+        .filterIsInstance<com.wearmux.android.integration.adapters.devices.omi.OmiGlassesWearableSession>()
+        .firstOrNull()?.client
+
+    val wristbandBleClient: BrilliantSoleWristbandBleClientApi?
+    get() = currentWristbandClient()
+
+val glassesBleClient: OmiGlassesBleClientApi?
+    get() = currentGlassesClient()
 
     internal fun sendGlassesCommand(command: WearableCommand, label: String, onAccepted: (() -> Unit)? = null) {
         val id = currentGlassesSessionId() ?: run { appendLog("Omi: no active session for $label"); return }
@@ -715,9 +829,10 @@ class WearableService : Service(), LifecycleOwner {
                 _vehicleApproachDecision, _cyclistMode,
             ),
             callbacks = com.wearmux.android.integration.safety.SafetyLoopsBuilder.Callbacks(
-                sendStopVibration = { wristbandBleClient.sendStopAlertVibration() },
-                sendGoVibration = { wristbandBleClient.sendGoAlertVibration() },
-                sendWaveformVibration = { a -> runCatching { wristbandBleClient.sendWaveformVibration(a, durationMs = 250, locationBitmask = 0x03) } },
+                // Os alertas vibram todas as pulseiras ligadas.
+                sendStopVibration = { currentWristbandClients().forEach { it.sendStopAlertVibration() } },
+                sendGoVibration = { currentWristbandClients().forEach { it.sendGoAlertVibration() } },
+                sendWaveformVibration = { a -> runCatching { currentWristbandClients().forEach { it.sendWaveformVibration(a, durationMs = 250, locationBitmask = 0x03) } } },
                 latestJpeg = { latestCameraJpeg }, latestJpegAtMs = { latestCameraJpegAtMs },
                 latestBitmap = { _latestCameraBitmap.value },
                 frameProvider = {
@@ -770,7 +885,7 @@ class WearableService : Service(), LifecycleOwner {
 
     internal val mlProcessingCoordinator by lazy {
         com.wearmux.android.integration.ml.MlProcessingCoordinator(
-            serviceScope, { wristbandBleClient }, { serverClassifier },
+            serviceScope, { wristbandBleClient ?: throw IllegalStateException("Wristband not connected") }, { serverClassifier },
             { wristbandSensorRateAppliedMs = it }, ::updateWristbandTrafficProfile, ::appendLog,
         )
     }

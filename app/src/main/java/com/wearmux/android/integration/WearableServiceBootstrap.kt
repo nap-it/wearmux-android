@@ -9,7 +9,6 @@ import com.wearmux.android.integration.api.MqttConfig
 import com.wearmux.android.integration.api.WearMuxServerClassifier
 import com.wearmux.android.integration.hub.DefaultDeviceConnectionCoordinator
 import com.wearmux.android.integration.hub.DefaultDeviceHub
-import com.wearmux.android.integration.hub.standardWearableAdapterRegistry
 import com.wearmux.android.integration.ml.WearMuxOnDeviceClassifier
 import com.wearmux.android.integration.modules.camera.BleCameraPipeline
 import com.wearmux.android.integration.modules.camera.CameraStreamHealth
@@ -26,17 +25,23 @@ import com.wearmux.android.integration.safety.SafetyOrchestrator
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.wearmux.android.integration.hub.DeviceType
+import com.wearmux.android.integration.hub.WearableAdapterRegistry
 
 internal fun WearableService.bootstrapAdaptersAndHub() {
-    glassesWearableAdapter = OmiGlassesWearableAdapter(defaultOmiGlassesClientFactory(this), wearableRealtimeSink)
-    wristbandWearableAdapter = BrilliantSoleWristbandWearableAdapter(defaultBrilliantSoleClientFactory(this), wearableRealtimeSink)
-    val esp32 = com.wearmux.android.integration.adapters.devices.esp32.Esp32WearableAdapter(realtimeSink = wearableRealtimeSink)
     watchClient = com.wearmux.android.integration.modules.wearos.WatchClient(this).also {
         it.csvWriter = latencyCsvWriter
     }
-    val galaxyWatch = com.wearmux.android.integration.adapters.devices.galaxywatch.GalaxyWatchWearableAdapter(watchClient)
+
+    val myRegistry = WearableAdapterRegistry(mapOf(
+        DeviceType.WRISTBAND_BRILLIANT_SOLE to { BrilliantSoleWristbandWearableAdapter(defaultBrilliantSoleClientFactory(this), wearableRealtimeSink) },
+        DeviceType.GLASSES_OMI to { OmiGlassesWearableAdapter(defaultOmiGlassesClientFactory(this), wearableRealtimeSink) },
+        DeviceType.WATCH_GALAXY to { com.wearmux.android.integration.adapters.devices.galaxywatch.GalaxyWatchWearableAdapter(watchClient) },
+        DeviceType.ESP32_CAMERA to { com.wearmux.android.integration.adapters.devices.esp32.Esp32WearableAdapter(realtimeSink = wearableRealtimeSink) }
+    ))
+
     deviceHub = DefaultDeviceHub(
-        DefaultDeviceConnectionCoordinator(standardWearableAdapterRegistry(glassesWearableAdapter, wristbandWearableAdapter, esp32, galaxyWatch)),
+        DefaultDeviceConnectionCoordinator(myRegistry),
         serviceScope,
     )
     WearableService._glassesWifiSupported.value = false
@@ -44,11 +49,10 @@ internal fun WearableService.bootstrapAdaptersAndHub() {
     WearableService._glassesWifiConnected.value = null
     WearableService._glassesWifiSecure.value = null
 }
-
 internal fun WearableService.bootstrapCameraAndMicManagers() {
     val onJpeg: (ByteArray) -> Unit = { jpeg ->
         latestCameraJpeg = jpeg; latestCameraJpegAtMs = timestamper.now()
-        glassesBleClient.onSdkStreamImageAssembled()
+        glassesBleClient?.onSdkStreamImageAssembled()
     }
     bleCameraPipeline = BleCameraPipeline(metrics = cameraMetrics).apply {
         onLog = WearableService::appendLog; onJpegReady = onJpeg
@@ -61,7 +65,7 @@ internal fun WearableService.bootstrapCameraAndMicManagers() {
         },
         onJpegReady = onJpeg, onLog = WearableService::appendLog, metrics = cameraMetrics,
     )
-    runCatching { glassesBleClient.attachCameraMetrics(cameraMetrics) }
+    runCatching { glassesBleClient?.attachCameraMetrics(cameraMetrics) }
     cameraMetrics.start(serviceScope)
     glassesMicrophoneManager = GlassesMicrophoneManager(audioPipeline, WearableService::appendLog)
 }
@@ -118,10 +122,12 @@ internal fun WearableService.bootstrapCrossingZones() {
 internal fun WearableService.bootstrapSafety() {
     val outputDispatcher = OutputDispatcher(
         watchClient,
-        vibrateWristband = { runCatching { wristbandBleClient.sendStopAlertVibration() } },
+        // Os alertas de segurança vibram **todas** as pulseiras ligadas: com
+        // várias pulseiras, o aviso tem de chegar a todas.
+        vibrateWristband = { runCatching { currentWristbandClients().forEach { it.sendStopAlertVibration() } } },
         vibrateWristbandIntensity = { pct ->
             val a = (pct.coerceIn(0, 100) / 100f).coerceAtLeast(0.2f)
-            runCatching { wristbandBleClient.sendWaveformVibration(a, durationMs = 250, locationBitmask = 0x03) }
+            runCatching { currentWristbandClients().forEach { it.sendWaveformVibration(a, durationMs = 250, locationBitmask = 0x03) } }
         },
         eventBus = safetyEventBus,
     )

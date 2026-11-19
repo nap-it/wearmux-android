@@ -19,6 +19,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
+import android.util.Log
 
 class BrilliantSoleWristbandWearableAdapter(
     private val clientFactory: BrilliantSoleWristbandClientFactory,
@@ -40,6 +41,7 @@ class BrilliantSoleWristbandWearableAdapter(
         // sdkDeviceType=4 é Glasses (Omi) — excluímos esse valor
         private const val SDK_DEVICE_TYPE_GLASSES = SDK_DEVICE_TYPE_GLASSES_RAW
     }
+
 
     override fun probableMatch(scan: WearableScanCandidate): Boolean {
         if (BS_SERVICE_UUID !in scan.advertisedServiceUuids) return false
@@ -75,20 +77,24 @@ class BrilliantSoleWristbandWearableAdapter(
         scan: WearableScanCandidate,
         scope: CoroutineScope,
     ): Result<WearableSession> {
+      Log.d("WearMux", "Iniciando conexão para: ${scan.id.raw}")
         val raw = scan.raw
             ?: return Result.failure(IllegalArgumentException("scan.raw is required to connect ${scan.id.raw}"))
 
         val client = getOrCreateClient(scan.id)
         client.connectDevice(raw)
 
+        Log.d("WearMux", "Client.connectDevice chamado para: ${scan.id.raw}")
+
         val snapshot = withTimeoutOrNull(PROFILE_TIMEOUT_MS) {
             client.gattProfile.filterNotNull().first()
         } ?: run {
+            Log.e("WearMux", "TIMEOUT no GATT profile para: ${scan.id.raw}")
             client.disconnect()
             releaseClient(scan.id)
             return Result.failure(IllegalStateException("Timed out waiting for Brilliant Sole GATT profile for ${scan.id.raw}"))
         }
-
+        Log.d("WearMux", "GATT profile recebido para: ${scan.id.raw}")
         val profile = GattProfileObserver.connectedProfile(scan, snapshot)
         if (!confirmMatch(profile)) {
             client.disconnect()

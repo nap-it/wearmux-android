@@ -23,7 +23,7 @@ class HomeScreenTest {
             HomeScreen(viewModel = viewModel, onOpenDevice = {}, onOpenSettings = {})
         }
 
-        composeTestRule.onNodeWithText("Connect Device").assertExists()
+        composeTestRule.onNodeWithText("Search Wearables").assertExists()
     }
 
     @Test

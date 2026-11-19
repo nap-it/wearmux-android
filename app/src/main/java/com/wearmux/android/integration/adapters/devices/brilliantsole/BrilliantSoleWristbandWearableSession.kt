@@ -28,7 +28,7 @@ import kotlinx.coroutines.launch
 class BrilliantSoleWristbandWearableSession(
     override val id: WearableId,
     profile: WearableConnectedDeviceProfile,
-    private val client: BrilliantSoleWristbandBleClientApi,
+    internal val client: BrilliantSoleWristbandBleClientApi,
     private val scope: CoroutineScope,
     private val realtimeSink: WearableRealtimeSink = WearableRealtimeSink.NONE,
     val callbackMultiplexer: BrilliantSoleCallbackMultiplexer = BrilliantSoleCallbackMultiplexer(client, scope),

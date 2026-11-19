@@ -4,6 +4,7 @@ import com.wearmux.android.integration.BleConnectionCandidate
 import com.wearmux.android.integration.adapters.BleDeviceState
 import com.wearmux.android.integration.adapters.WearableId
 import com.wearmux.android.integration.adapters.WearableScanCandidate
+import com.wearmux.android.integration.adapters.devices.brilliantsole.BrilliantSoleWristbandWearableAdapter
 import com.wearmux.android.integration.adapters.toWearableScanCandidate
 import com.wearmux.android.integration.hub.CapabilityScanCandidate
 import com.wearmux.android.integration.hub.DeviceDiscoveryScanner
@@ -24,7 +25,6 @@ class DeviceDiscoveryCoordinator(
     private val hub: DefaultDeviceHub,
     private val scanner: DeviceDiscoveryScanner,
     private val glassesState: () -> BleDeviceState,
-    private val wristbandState: () -> BleDeviceState,
     private val appendLog: (String) -> Unit,
 ) {
     private val _candidates = MutableStateFlow<List<BleConnectionCandidate>>(emptyList())
@@ -83,7 +83,7 @@ class DeviceDiscoveryCoordinator(
     fun startAutoConnect() {
         if (autoConnectInProgress) { appendLog("Auto connect already in progress"); return }
         stopDiscovery()
-        val wantGlasses = !isGlassesBusy(); val wantSole = !isWristbandBusy()
+        val wantGlasses = !isGlassesBusy(); val wantSole = !hasAnyWristband()
         if (!wantGlasses && !wantSole) { appendLog("Auto connect skipped: all slots busy"); return }
         autoConnectInProgress = true
         appendLog("Auto connect: searching for a compatible wearable...")
@@ -108,7 +108,7 @@ class DeviceDiscoveryCoordinator(
             else { appendLog("Connecting ${c.name} as GLASSES"); via(c); true }
         }
         WearableKind.WRIST_OR_SOLE -> {
-            if (isWristbandBusy()) { appendLog("Wristband slot busy"); false }
+            if (isWristbandBusy(c.address)) { appendLog("Wristband ${c.address} already connected"); false }
             else { appendLog("Connecting ${c.name} as WRIST/SOLE"); via(c); true }
         }
         WearableKind.UNKNOWN -> connectUnknown(c, preferredKind = null)
@@ -118,10 +118,10 @@ class DeviceDiscoveryCoordinator(
         val label = c.name.ifBlank { c.address }
         return when (preferredKind) {
             WearableKind.GLASSES -> if (isGlassesBusy()) { appendLog("$label: Omi slot busy"); false } else { via(c); true }
-            WearableKind.WRIST_OR_SOLE -> if (isWristbandBusy()) { appendLog("$label: wristband slot busy"); false } else { via(c); true }
+            WearableKind.WRIST_OR_SOLE -> if (isWristbandBusy(c.address)) { appendLog("$label: wristband already connected"); false } else { via(c); true }
             null, WearableKind.UNKNOWN -> when {
                 !isGlassesBusy() -> { appendLog("$label: fallback Omi"); via(c); true }
-                !isWristbandBusy() -> { appendLog("$label: wristband fallback"); via(c); true }
+                !isWristbandBusy(c.address) -> { appendLog("$label: wristband fallback"); via(c); true }
                 else -> { appendLog("$label: both slots busy"); false }
             }
         }
@@ -129,10 +129,10 @@ class DeviceDiscoveryCoordinator(
 
     private fun handleAuto(c: CapabilityScanCandidate, wantGlasses: Boolean, wantSole: Boolean): Boolean = when (c.kind) {
         WearableKind.GLASSES -> if (!wantGlasses || isGlassesBusy()) false else connectCandidate(c)
-        WearableKind.WRIST_OR_SOLE -> if (!wantSole || isWristbandBusy()) false else connectCandidate(c)
+        WearableKind.WRIST_OR_SOLE -> if (!wantSole || isWristbandBusy(c.address)) false else connectCandidate(c)
         WearableKind.UNKNOWN -> when {
             wantGlasses && !isGlassesBusy() -> connectUnknown(c, WearableKind.GLASSES)
-            wantSole && !isWristbandBusy() -> connectUnknown(c, WearableKind.WRIST_OR_SOLE)
+            wantSole && !isWristbandBusy(c.address) -> connectUnknown(c, WearableKind.WRIST_OR_SOLE)
             else -> { appendLog("Auto-connect: unknown type ${c.name}, continuing"); false }
         }
     }
@@ -167,7 +167,19 @@ class DeviceDiscoveryCoordinator(
     }
 
     private fun isGlassesBusy() = glassesState() != BleDeviceState.DISCONNECTED && glassesState() != BleDeviceState.ERROR
-    private fun isWristbandBusy() = wristbandState() != BleDeviceState.DISCONNECTED && wristbandState() != BleDeviceState.ERROR
+
+    /**
+     * 
+     *
+     * O "slot" de pulseira **não** é global: podem coexistir várias pulseiras,
+     * cada uma com a sua sessão no hub. Só se recusa a ligação quando é o
+     * *mesmo* dispositivo que já está ligado.
+     */
+    private fun isWristbandBusy(address: String): Boolean =
+        hub.sessions.value.values.any { it.adapterId == BrilliantSoleWristbandWearableAdapter.ADAPTER_ID && it.id.raw == address }
+
+    private fun hasAnyWristband(): Boolean =
+        hub.sessions.value.values.any { it.adapterId == BrilliantSoleWristbandWearableAdapter.ADAPTER_ID }
 
     private fun asUi(c: CapabilityScanCandidate) = BleConnectionCandidate(
         address = c.address, name = c.name, rssi = c.rssi, kind = c.kind,

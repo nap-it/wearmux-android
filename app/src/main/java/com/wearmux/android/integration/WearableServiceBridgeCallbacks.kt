@@ -30,21 +30,6 @@ internal fun WearableService.onGlassesIpReceived(ip: String) {
     if (WearableService._glassesConnectionMode.value == GlassesConnectionMode.WIFI && wifiCredentialsSent && !glassesConnectedViaUdp) connectUdp(ip)
 }
 
-internal fun WearableService.onWristbandStateChanged(state: BleDeviceState) {
-    WearableService._wristbandState.value = state
-    when (state) {
-        BleDeviceState.READY -> {
-            wristbandSensorRateAppliedMs = -1; applyMlProcessingMode(WearableService._mlProcessingLocation.value, "BS READY")
-        }
-        BleDeviceState.DISCONNECTED, BleDeviceState.ERROR -> {
-            wristbandSensorRateAppliedMs = -1
-            mlProcessingCoordinator.onWristbandDisconnected()
-            WearableService._latestImuSamples.update { emptyList() }
-        }
-        else -> Unit
-    }
-}
-
 internal fun WearableService.setupWearableLegacyBridge() {
     wearableBridge?.stop()
     wearableBridge = WearableServiceLegacyBridge(deviceHub, serviceScope, WearableServiceLegacyBridge.Callbacks(
@@ -63,9 +48,14 @@ internal fun WearableService.setupWearableLegacyBridge() {
         onGlassesMicrophoneStatus = glassesMicStateMachine::onStatus,
         onGlassesCameraStatus = glassesCameraStateMachine::onStatus,
         onGlassesIp = ::onGlassesIpReceived,
+        // A pulseira publica estado por sessão; os flows globais são o agregado.
         onWristbandState = ::onWristbandStateChanged,
-        onWristbandBattery = { WearableService._wristbandBattery.value = it },
-        onWristbandFirmware = { WearableService._wristbandFirmware.value = it },
+        onWristbandBattery = ::onWristbandBatteryChanged,
+        onWristbandFirmware = ::onWristbandFirmwareChanged,
+        onWristbandDevice = ::onWristbandDeviceChanged,
+        onGlassesDevice = ::onGlassesDeviceChanged,
+        onDeviceEvent = { id, event -> onDeviceEvent(id, event) },
+        onSessionRemoved = { id -> onWearableSessionRemoved(id) },
         onEsp32State = { WearableService._esp32State.value = it },
     )).also { it.start() }
 }

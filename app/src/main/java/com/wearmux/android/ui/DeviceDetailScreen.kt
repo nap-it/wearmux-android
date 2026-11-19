@@ -55,9 +55,9 @@ import com.wearmux.android.integration.modules.wearos.WatchClient
 @Composable
 fun DeviceDetailScreen(
     viewModel: AppViewModel,
-    deviceId: DeviceId,
+    deviceRef: DeviceRef,
     onBack: () -> Unit,
-    onOpenStatus: (DeviceId) -> Unit,
+    onOpenStatus: (DeviceRef) -> Unit,
 ) {
     val isDeveloperMode by viewModel.isDeveloperMode.collectAsStateWithLifecycle()
     var showConnectionDialog by remember { mutableStateOf(false) }
@@ -79,9 +79,9 @@ fun DeviceDetailScreen(
             Text("Back", color = Constants.secondaryTextColor, fontSize = 14.sp)
         }
 
-        DeviceHeader(deviceId)
+        DeviceHeader(deviceRef)
 
-        val (batteryText, statusText, statusColor) = deviceSummary(viewModel, deviceId)
+        val (batteryText, statusText, statusColor) = deviceSummary(viewModel, deviceRef)
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -99,22 +99,23 @@ fun DeviceDetailScreen(
         if (isDeveloperMode) {
             TechnicalDetailsBlock(
                 viewModel,
-                deviceId,
+                deviceRef,
                 onOpenConnectionDialog = { showConnectionDialog = true },
-                onOpenStatus = { onOpenStatus(deviceId) },
+                onOpenStatus = { onOpenStatus(deviceRef) },
             )
         }
 
         Spacer(modifier = Modifier.weight(1f))
 
-        DeviceActions(viewModel, deviceId)
+        DeviceActions(viewModel, deviceRef)
     }
 
     if (showConnectionDialog) {
-        deviceId.toConnectableDevice()?.let { connectable ->
+        deviceRef.id.toConnectableDevice()?.let { connectable ->
             DeviceConnectionDialog(
                 viewModel = viewModel,
                 device = connectable,
+                instanceId = deviceRef.instanceId,
                 onDismiss = { showConnectionDialog = false },
             )
         }
@@ -122,20 +123,20 @@ fun DeviceDetailScreen(
 }
 
 @Composable
-private fun DeviceHeader(deviceId: DeviceId) {
+private fun DeviceHeader(deviceRef: DeviceRef) {
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Icon(
-            imageVector = deviceId.icon(),
+            imageVector = deviceRef.id.icon(),
             contentDescription = null,
             tint = Constants.primaryTextColor,
             modifier = Modifier.height(56.dp),
         )
         Text(
-            text = deviceId.displayName(),
+            text = deviceRef.displayName(),
             color = Constants.primaryTextColor,
             fontSize = 22.sp,
             fontWeight = FontWeight.SemiBold,
@@ -167,7 +168,7 @@ private fun SummaryCard(
 @Composable
 private fun TechnicalDetailsBlock(
     viewModel: AppViewModel,
-    deviceId: DeviceId,
+    deviceRef: DeviceRef,
     onOpenConnectionDialog: () -> Unit,
     onOpenStatus: () -> Unit,
 ) {
@@ -188,7 +189,7 @@ private fun TechnicalDetailsBlock(
             fontWeight = FontWeight.SemiBold,
             letterSpacing = 0.6.sp,
         )
-        technicalDetailRows(viewModel, deviceId).forEach { (label, value) ->
+        technicalDetailRows(viewModel, deviceRef).forEach { (label, value) ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -197,7 +198,7 @@ private fun TechnicalDetailsBlock(
                 Text(value, color = Constants.primaryTextColor, fontSize = 12.sp)
             }
         }
-        if (deviceId.toConnectableDevice() != null) {
+        if (deviceRef.id.toConnectableDevice() != null) {
             OutlinedButton(onClick = onOpenConnectionDialog, modifier = Modifier.fillMaxWidth()) {
                 Text("Connection settings…", fontSize = 12.sp)
             }
@@ -209,16 +210,16 @@ private fun TechnicalDetailsBlock(
 }
 
 @Composable
-private fun DeviceActions(viewModel: AppViewModel, deviceId: DeviceId) {
+private fun DeviceActions(viewModel: AppViewModel, deviceRef: DeviceRef) {
     var showForgetConfirm by remember { mutableStateOf(false) }
     val isDeveloperMode by viewModel.isDeveloperMode.collectAsStateWithLifecycle()
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        if (deviceId == DeviceId.PHONE) {
+        if (deviceRef.id == DeviceId.PHONE) {
             PhoneSensorsAction(viewModel, isDeveloperMode)
         } else {
             Button(
-                onClick = { disconnect(viewModel, deviceId) },
+                onClick = { disconnect(viewModel, deviceRef) },
                 colors = ButtonDefaults.buttonColors(containerColor = Constants.neutralButton),
                 modifier = Modifier.fillMaxWidth(),
             ) { Text("Disconnect", color = Constants.primaryTextColor, fontSize = 16.sp) }
@@ -238,7 +239,7 @@ private fun DeviceActions(viewModel: AppViewModel, deviceId: DeviceId) {
             text = { Text("This disconnects the device. To reconnect, use the Connect Device screen again.") },
             confirmButton = {
                 TextButton(onClick = {
-                    disconnect(viewModel, deviceId)
+                    disconnect(viewModel, deviceRef)
                     showForgetConfirm = false
                 }) { Text("Confirm") }
             },
@@ -282,10 +283,13 @@ private fun PhoneSensorsAction(viewModel: AppViewModel, isDeveloperMode: Boolean
     }
 }
 
-private fun disconnect(viewModel: AppViewModel, deviceId: DeviceId) {
-    when (deviceId) {
+private fun disconnect(viewModel: AppViewModel, deviceRef: DeviceRef) {
+    when (deviceRef.id) {
         DeviceId.GLASSES -> viewModel.disconnectGlasses()
-        DeviceId.WRISTBAND -> viewModel.disconnectWristband()
+        // Desliga **esta** pulseira (identificada pelo MAC), não "a primeira".
+        DeviceId.WRISTBAND -> deviceRef.instanceId
+            ?.let { viewModel.disconnectWristband(it) }
+            ?: viewModel.disconnectWristband()
         DeviceId.GALAXY_WATCH -> viewModel.watchStopImu()
         DeviceId.ESP32_CAM -> {} // No explicit disconnect action exists yet for ESP32.
         DeviceId.PHONE -> {}
@@ -300,10 +304,13 @@ private fun DeviceId.icon() = when (this) {
     DeviceId.ESP32_CAM -> Icons.Outlined.Visibility
 }
 
-private fun DeviceId.displayName() = when (this) {
+/**
+ * Nome mostrado no cabeçalho.
+ */
+private fun DeviceRef.displayName(): String = when (id) {
     DeviceId.PHONE -> "Phone"
-    DeviceId.GLASSES -> "Glasses"
-    DeviceId.WRISTBAND -> "Wristband"
+    DeviceId.GLASSES -> instanceId ?: "Glasses"
+    DeviceId.WRISTBAND -> instanceId ?: "Wristband"
     DeviceId.GALAXY_WATCH -> "Galaxy Watch"
     DeviceId.ESP32_CAM -> "ESP32 Camera"
 }
@@ -323,8 +330,8 @@ private data class DeviceSummary(
 )
 
 @Composable
-private fun deviceSummary(viewModel: AppViewModel, deviceId: DeviceId): DeviceSummary {
-    return when (deviceId) {
+private fun deviceSummary(viewModel: AppViewModel, deviceRef: DeviceRef): DeviceSummary {
+    return when (deviceRef.id) {
         DeviceId.PHONE -> {
             val battery by viewModel.phoneBatteryPercent.collectAsStateWithLifecycle()
             val active by viewModel.phoneSensorsActive.collectAsStateWithLifecycle()
@@ -344,13 +351,25 @@ private fun deviceSummary(viewModel: AppViewModel, deviceId: DeviceId): DeviceSu
             )
         }
         DeviceId.WRISTBAND -> {
-            val state by viewModel.wristbandState.collectAsStateWithLifecycle()
-            val battery by viewModel.wristbandBattery.collectAsStateWithLifecycle()
-            DeviceSummary(
-                batteryText = if (battery >= 0) "$battery%" else "—",
-                statusText = bleStatusText(state),
-                statusColor = bleStatusColor(state),
-            )
+            // Estado e bateria da **instante** pedida, não o agregado.
+            val devices by viewModel.wristbandDevices.collectAsStateWithLifecycle()
+            val device = devices.firstOrNull { it.id == deviceRef.instanceId }
+            if (device != null) {
+                DeviceSummary(
+                    batteryText = if (device.battery >= 0) "${device.battery}%" else "—",
+                    statusText = bleStatusText(device.state),
+                    statusColor = bleStatusColor(device.state),
+                )
+            } else {
+                // Sessão já desligada — fallback para o estado agregado.
+                val state by viewModel.wristbandState.collectAsStateWithLifecycle()
+                val battery by viewModel.wristbandBattery.collectAsStateWithLifecycle()
+                DeviceSummary(
+                    batteryText = if (battery >= 0) "$battery%" else "—",
+                    statusText = bleStatusText(state),
+                    statusColor = bleStatusColor(state),
+                )
+            }
         }
         DeviceId.GALAXY_WATCH -> {
             val state by viewModel.watchState.collectAsStateWithLifecycle()
@@ -373,8 +392,8 @@ private fun deviceSummary(viewModel: AppViewModel, deviceId: DeviceId): DeviceSu
 }
 
 @Composable
-private fun technicalDetailRows(viewModel: AppViewModel, deviceId: DeviceId): List<Pair<String, String>> {
-    return when (deviceId) {
+private fun technicalDetailRows(viewModel: AppViewModel, deviceRef: DeviceRef): List<Pair<String, String>> {
+    return when (deviceRef.id) {
         DeviceId.GLASSES -> {
             val fw by viewModel.glassesFirmware.collectAsStateWithLifecycle()
             val ip by viewModel.glassesIp.collectAsStateWithLifecycle()
@@ -386,8 +405,13 @@ private fun technicalDetailRows(viewModel: AppViewModel, deviceId: DeviceId): Li
             )
         }
         DeviceId.WRISTBAND -> {
-            val activity by viewModel.wristbandActivity.collectAsStateWithLifecycle()
-            listOf("Activity" to activity)
+            val devices by viewModel.wristbandDevices.collectAsStateWithLifecycle()
+            val device = devices.firstOrNull { it.id == deviceRef.instanceId }
+            listOfNotNull(
+                "MAC address" to (deviceRef.instanceId ?: "—"),
+                "Firmware" to (device?.firmware?.takeIf { it.isNotBlank() } ?: "—"),
+                "Activity" to (device?.activity?.takeIf { it.isNotBlank() } ?: "—"),
+            )
         }
         DeviceId.GALAXY_WATCH -> {
             val rate by viewModel.watchSampleRateHz.collectAsStateWithLifecycle()

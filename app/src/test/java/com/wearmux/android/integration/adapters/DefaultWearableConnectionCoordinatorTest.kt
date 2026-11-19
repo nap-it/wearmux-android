@@ -1,6 +1,7 @@
 package com.wearmux.android.integration.adapters
 
 import com.wearmux.android.integration.hub.DefaultDeviceConnectionCoordinator
+import com.wearmux.android.integration.hub.DeviceType
 import com.wearmux.android.integration.hub.WearableAdapterRegistry
 import java.util.UUID
 import kotlinx.coroutines.test.runTest
@@ -23,6 +24,22 @@ class DefaultWearableConnectionCoordinatorTest {
         raw = null,
     )
 
+    /**
+     * Cada adapter é registado sob um [DeviceType] diferente — o registry tem
+     * no máximo um adapter por tipo.
+     */
+    private fun registryOf(vararg adapters: FakeWearableAdapter): WearableAdapterRegistry {
+        val types = listOf(
+            DeviceType.GLASSES_OMI,
+            DeviceType.WRISTBAND_BRILLIANT_SOLE,
+            DeviceType.ESP32_CAMERA,
+            DeviceType.WATCH_GALAXY,
+        )
+        return WearableAdapterRegistry(
+            adapters.mapIndexed { index, adapter -> types[index] to { adapter } }.toMap(),
+        )
+    }
+
     @Test
     fun coordinate_usesFirstProbableAdapterThatConnects() = runTest {
         val expected = FakeWearableSession(WearableId("AA:11:22:33:44:55"), adapterId = "B")
@@ -36,7 +53,7 @@ class DefaultWearableConnectionCoordinatorTest {
             probable = { true },
             connectResult = { _, _ -> Result.success(expected) },
         )
-        val coordinator = DefaultDeviceConnectionCoordinator(WearableAdapterRegistry(listOf(adapterA, adapterB)))
+        val coordinator = DefaultDeviceConnectionCoordinator(registryOf(adapterA, adapterB))
 
         val result = coordinator.coordinate(scan(), backgroundScope)
 
@@ -50,7 +67,7 @@ class DefaultWearableConnectionCoordinatorTest {
     fun coordinate_doesNotCallAdaptersThatAreNotProbable() = runTest {
         val adapterA = FakeWearableAdapter(id = "A", probable = { false })
         val adapterB = FakeWearableAdapter(id = "B", probable = { true })
-        val coordinator = DefaultDeviceConnectionCoordinator(WearableAdapterRegistry(listOf(adapterA, adapterB)))
+        val coordinator = DefaultDeviceConnectionCoordinator(registryOf(adapterA, adapterB))
 
         val result = coordinator.coordinate(scan(), backgroundScope)
 
@@ -62,7 +79,7 @@ class DefaultWearableConnectionCoordinatorTest {
     @Test
     fun coordinate_returnsFailureWhenNoAdapterMatches() = runTest {
         val coordinator = DefaultDeviceConnectionCoordinator(
-            WearableAdapterRegistry(listOf(FakeWearableAdapter(id = "A", probable = { false }))),
+            registryOf(FakeWearableAdapter(id = "A", probable = { false })),
         )
 
         val result = coordinator.coordinate(scan(), backgroundScope)

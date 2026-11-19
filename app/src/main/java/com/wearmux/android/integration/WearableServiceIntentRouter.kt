@@ -18,6 +18,7 @@ import com.wearmux.android.integration.WearableServiceActions.ACTION_CONNECT_WRI
 import com.wearmux.android.integration.WearableServiceActions.ACTION_DEPTH_SET_URL
 import com.wearmux.android.integration.WearableServiceActions.ACTION_DISCONNECT_GLASSES
 import com.wearmux.android.integration.WearableServiceActions.ACTION_DISCONNECT_WRISTBAND
+import com.wearmux.android.integration.WearableServiceActions.ACTION_DISCONNECT_WRISTBAND_BY_MAC
 import com.wearmux.android.integration.WearableServiceActions.ACTION_DISCOVER_CANDIDATES
 import com.wearmux.android.integration.WearableServiceActions.ACTION_PDR_RESET
 import com.wearmux.android.integration.WearableServiceActions.ACTION_ROUTE_ACTIVATE
@@ -77,6 +78,7 @@ import com.wearmux.android.integration.WearableServiceActions.EXTRA_TONE_DURATIO
 import com.wearmux.android.integration.WearableServiceActions.EXTRA_TONE_FREQ_HZ
 import com.wearmux.android.integration.WearableServiceActions.EXTRA_VIBRATE_PATTERN
 import com.wearmux.android.integration.WearableServiceActions.EXTRA_WATCH_RATE_HZ
+import com.wearmux.android.integration.WearableServiceActions.EXTRA_WRISTBAND_MAC
 import com.wearmux.android.integration.WearableServiceActions.EXTRA_KWS_HOST
 import com.wearmux.android.integration.hub.WearableKind
 import com.wearmux.android.integration.modules.android.AudioTestEngine
@@ -92,6 +94,9 @@ internal fun WearableService.routeIntent(intent: Intent?) {
         ACTION_CONNECT_AUTO -> startAutoConnectFlow()
         ACTION_DISCONNECT_GLASSES -> disconnectGlasses()
         ACTION_DISCONNECT_WRISTBAND -> disconnectWristband()
+        ACTION_DISCONNECT_WRISTBAND_BY_MAC -> intent.getStringExtra(EXTRA_WRISTBAND_MAC)?.takeIf { it.isNotBlank() }
+            ?.let(::disconnectWristband)
+            ?: WearableService.appendLog("⚠  DISCONNECT_WRISTBAND_BY_MAC sem MAC")
         ACTION_DISCOVER_CANDIDATES -> startCandidateDiscovery()
         ACTION_STOP_DISCOVER_CANDIDATES -> stopCandidateDiscoveryIfNeeded("Candidate discovery stopped")
         ACTION_CONNECT_CANDIDATE -> handleConnectCandidate(intent)
@@ -113,8 +118,8 @@ internal fun WearableService.routeIntent(intent: Intent?) {
         ACTION_CONNECT_UDP -> handleConnectUdp()
         ACTION_MQTT_SET_CONFIG -> handleMqttSetConfig(intent)
         ACTION_SET_GLASSES_CONNECTION_MODE -> handleSetGlassesConnectionMode(intent)
-        ACTION_VIBRATE_STOP -> { wristbandBleClient.sendStopAlertVibration(); WearableService.appendLog("🛑 STOP vibration via App") }
-        ACTION_VIBRATE_GO -> { wristbandBleClient.sendGoAlertVibration(); WearableService.appendLog("▶️ GO vibration via App") }
+        ACTION_VIBRATE_STOP -> { currentWristbandClients().forEach { it.sendStopAlertVibration() }; WearableService.appendLog("🛑 STOP vibration via App") }
+        ACTION_VIBRATE_GO -> { currentWristbandClients().forEach { it.sendGoAlertVibration() }; WearableService.appendLog("▶️ GO vibration via App") }
         ACTION_CAPTURE_PHOTO -> takePictureWithMicPriority("Capturing photo")
         ACTION_START_STREAM -> handleStartStream()
         ACTION_STOP_STREAM -> handleStopStream()

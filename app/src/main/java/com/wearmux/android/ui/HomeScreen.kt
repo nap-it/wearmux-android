@@ -48,22 +48,21 @@ import com.wearmux.android.Constants
 import com.wearmux.android.integration.adapters.BleDeviceState
 import com.wearmux.android.integration.modules.wearos.WatchClient
 
-/** Identifies a device the home screen and detail screen both refer to. */
-enum class DeviceId {
-    PHONE, GLASSES, WRISTBAND, GALAXY_WATCH, ESP32_CAM
-}
-
 /**
  * The app's single entry point screen. Always the same route ("home"):
  * a giant "Connect Device" call to action when no external wearable is
  * connected, shrinking to a compact "+ Connect another device" strip with
  * the connected-devices list taking over below it once at least one is
  * connected. The phone is always the first item in that list.
+ *
+ * Devices that can exist more than once at a time (the Brilliant Sole
+ * wristbands) are rendered **one card per instance**, each titled with its
+ * MAC address — so two wristbands show up as two objects, not one.
  */
 @Composable
 fun HomeScreen(
     viewModel: AppViewModel,
-    onOpenDevice: (DeviceId) -> Unit,
+    onOpenDevice: (DeviceRef) -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     val hasConnectedWearable by viewModel.hasConnectedWearable.collectAsStateWithLifecycle()
@@ -110,7 +109,7 @@ fun HomeScreen(
         PhoneDeviceCard(viewModel, onOpenDevice)
         WatchDeviceCard(viewModel, onOpenDevice)
         GlassesDeviceCard(viewModel, onOpenDevice)
-        WristbandDeviceCard(viewModel, onOpenDevice)
+        WristbandDeviceCards(viewModel, onOpenDevice)
         Esp32DeviceCard(viewModel, onOpenDevice)
     }
 }
@@ -245,7 +244,7 @@ private fun CandidateScanSection(viewModel: AppViewModel) {
 }
 
 @Composable
-private fun PhoneDeviceCard(viewModel: AppViewModel, onOpenDevice: (DeviceId) -> Unit) {
+private fun PhoneDeviceCard(viewModel: AppViewModel, onOpenDevice: (DeviceRef) -> Unit) {
     val phoneSensorsActive by viewModel.phoneSensorsActive.collectAsStateWithLifecycle()
     val pdrStepCount by viewModel.pdrStepCount.collectAsStateWithLifecycle()
     val batteryPercent by viewModel.phoneBatteryPercent.collectAsStateWithLifecycle()
@@ -256,12 +255,12 @@ private fun PhoneDeviceCard(viewModel: AppViewModel, onOpenDevice: (DeviceId) ->
         title = "Phone",
         subtitle = (if (phoneSensorsActive) "Sensors active · $pdrStepCount steps" else "Sensors idle") + batterySuffix,
         statusColor = if (phoneSensorsActive) Constants.successColor else Constants.idleColor,
-        onClick = { onOpenDevice(DeviceId.PHONE) },
+        onClick = { onOpenDevice(DeviceRef(DeviceId.PHONE)) },
     )
 }
 
 @Composable
-private fun WatchDeviceCard(viewModel: AppViewModel, onOpenDevice: (DeviceId) -> Unit) {
+private fun WatchDeviceCard(viewModel: AppViewModel, onOpenDevice: (DeviceRef) -> Unit) {
     val watchState by viewModel.watchState.collectAsStateWithLifecycle()
     val watchName by viewModel.watchName.collectAsStateWithLifecycle()
     val watchBattery by viewModel.watchBattery.collectAsStateWithLifecycle()
@@ -276,47 +275,49 @@ private fun WatchDeviceCard(viewModel: AppViewModel, onOpenDevice: (DeviceId) ->
         title = watchName ?: "Galaxy Watch",
         subtitle = describeWatch(watchState, watchBattery, watchRate, watchSps, watchBpm),
         statusColor = colorFor(watchState),
-        onClick = { onOpenDevice(DeviceId.GALAXY_WATCH) },
+        onClick = { onOpenDevice(DeviceRef(DeviceId.GALAXY_WATCH)) },
     )
 }
 
 @Composable
-private fun GlassesDeviceCard(viewModel: AppViewModel, onOpenDevice: (DeviceId) -> Unit) {
+private fun GlassesDeviceCard(viewModel: AppViewModel, onOpenDevice: (DeviceRef) -> Unit) {
     val glassesState by viewModel.glassesState.collectAsStateWithLifecycle()
     val glassesBattery by viewModel.glassesBattery.collectAsStateWithLifecycle()
     val glassesFw by viewModel.glassesFirmware.collectAsStateWithLifecycle()
     val glassesIp by viewModel.glassesIp.collectAsStateWithLifecycle()
+    val glassesDevices by viewModel.glassesDevices.collectAsStateWithLifecycle()
 
     if (!WearableVisibilityHelpers.isVisible(glassesState)) return
 
+    val glassesAddress = glassesDevices.firstOrNull()?.id
     DeviceCard(
         icon = Icons.Outlined.Visibility,
-        title = "Glasses",
+        title = glassesAddress ?: "Glasses",
         subtitle = describeGlasses(glassesState, glassesBattery, glassesIp, glassesFw),
         statusColor = colorForBle(glassesState),
-        onClick = { onOpenDevice(DeviceId.GLASSES) },
+        onClick = { onOpenDevice(DeviceRef(DeviceId.GLASSES, glassesAddress)) },
     )
 }
 
 @Composable
-private fun WristbandDeviceCard(viewModel: AppViewModel, onOpenDevice: (DeviceId) -> Unit) {
-    val wristbandState by viewModel.wristbandState.collectAsStateWithLifecycle()
-    val wristbandBattery by viewModel.wristbandBattery.collectAsStateWithLifecycle()
-    val wristbandActivity by viewModel.wristbandActivity.collectAsStateWithLifecycle()
+private fun WristbandDeviceCards(viewModel: AppViewModel, onOpenDevice: (DeviceRef) -> Unit) {
+    val wristbandDevices by viewModel.wristbandDevices.collectAsStateWithLifecycle()
 
-    if (!WearableVisibilityHelpers.isVisible(wristbandState)) return
-
-    DeviceCard(
-        icon = Icons.AutoMirrored.Filled.DirectionsWalk,
-        title = "Wristband",
-        subtitle = describeSole(wristbandState, wristbandBattery, wristbandActivity),
-        statusColor = colorForBle(wristbandState),
-        onClick = { onOpenDevice(DeviceId.WRISTBAND) },
-    )
+    wristbandDevices
+        .filter { WearableVisibilityHelpers.isVisible(it.state) }
+        .forEach { device ->
+            DeviceCard(
+                icon = Icons.AutoMirrored.Filled.DirectionsWalk,
+                title = device.id,
+                subtitle = describeSole(device.state, device.battery, device.activity),
+                statusColor = colorForBle(device.state),
+                onClick = { onOpenDevice(DeviceRef(DeviceId.WRISTBAND, device.id)) },
+            )
+        }
 }
 
 @Composable
-private fun Esp32DeviceCard(viewModel: AppViewModel, onOpenDevice: (DeviceId) -> Unit) {
+private fun Esp32DeviceCard(viewModel: AppViewModel, onOpenDevice: (DeviceRef) -> Unit) {
     val esp32State by viewModel.esp32State.collectAsStateWithLifecycle()
     if (!WearableVisibilityHelpers.isVisible(esp32State)) return
 
@@ -325,7 +326,7 @@ private fun Esp32DeviceCard(viewModel: AppViewModel, onOpenDevice: (DeviceId) ->
         title = "ESP32 Camera",
         subtitle = if (esp32State == BleDeviceState.CONNECTED) "Connected via Wi-Fi" else "Manual",
         statusColor = colorForBle(esp32State),
-        onClick = { onOpenDevice(DeviceId.ESP32_CAM) },
+        onClick = { onOpenDevice(DeviceRef(DeviceId.ESP32_CAM)) },
     )
 }
 
@@ -433,7 +434,11 @@ private fun describeGlasses(state: BleDeviceState, battery: Int, ip: String?, fw
 private fun describeSole(state: BleDeviceState, battery: Int, activity: String): String {
     val batteryStr = if (battery >= 0) "$battery%" else "—"
     return when (state) {
-        BleDeviceState.CONNECTED, BleDeviceState.READY -> "Connected · battery $batteryStr · $activity"
+        BleDeviceState.CONNECTED, BleDeviceState.READY -> {
+            val core = "Connected · battery $batteryStr"
+            // A actividade é por pulseira — omitida enquanto não houver inferência.
+            if (activity.isBlank()) core else "$core · $activity"
+        }
         BleDeviceState.CONNECTING -> "Connecting..."
         BleDeviceState.DISCOVERING -> "Discovering services..."
         BleDeviceState.CONFIGURING -> "Configuring..."

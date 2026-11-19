@@ -48,7 +48,7 @@ import com.wearmux.android.integration.modules.wearos.WatchClient
  * (used from the bottom bar's Status tab).
  */
 @Composable
-fun EstadoScreen(viewModel: AppViewModel, onBack: () -> Unit, filterDevice: DeviceId? = null) {
+fun EstadoScreen(viewModel: AppViewModel, onBack: () -> Unit, filterDevice: DeviceRef? = null) {
     val cameraStreamHealth by viewModel.cameraStreamHealth.collectAsStateWithLifecycle()
     val glassesMicStreaming by viewModel.glassesMicStreaming.collectAsStateWithLifecycle()
     val glassesMicStatusText by viewModel.glassesMicStatusText.collectAsStateWithLifecycle()
@@ -57,6 +57,7 @@ fun EstadoScreen(viewModel: AppViewModel, onBack: () -> Unit, filterDevice: Devi
     val udpActive by viewModel.udpActive.collectAsStateWithLifecycle()
     val glassesState by viewModel.glassesState.collectAsStateWithLifecycle()
     val wristbandState by viewModel.wristbandState.collectAsStateWithLifecycle()
+    val wristbandDevices by viewModel.wristbandDevices.collectAsStateWithLifecycle()
     val watchState by viewModel.watchState.collectAsStateWithLifecycle()
     val glassesBattery by viewModel.glassesBattery.collectAsStateWithLifecycle()
     val wristbandBattery by viewModel.wristbandBattery.collectAsStateWithLifecycle()
@@ -97,7 +98,7 @@ fun EstadoScreen(viewModel: AppViewModel, onBack: () -> Unit, filterDevice: Devi
             SystemReadyCard(systemReady, glassesState)
         }
 
-        if (filterDevice == null || filterDevice == DeviceId.PHONE) {
+        if (filterDevice == null || filterDevice.id == DeviceId.PHONE) {
             SimpleDeviceStatusCard(
                 title = "Phone",
                 statusLabel = if (phoneSensorsActive) "Active" else "Idle",
@@ -106,7 +107,7 @@ fun EstadoScreen(viewModel: AppViewModel, onBack: () -> Unit, filterDevice: Devi
             )
         }
 
-        if (filterDevice == null || filterDevice == DeviceId.GLASSES) {
+        if (filterDevice == null || filterDevice.id == DeviceId.GLASSES) {
             GlassesStatusCard(
                 glassesState = glassesState,
                 cameraStreamStatus = cameraStreamHealth.status,
@@ -121,7 +122,7 @@ fun EstadoScreen(viewModel: AppViewModel, onBack: () -> Unit, filterDevice: Devi
             )
         }
 
-        if (filterDevice == null || filterDevice == DeviceId.GALAXY_WATCH) {
+        if (filterDevice == null || filterDevice.id == DeviceId.GALAXY_WATCH) {
             SimpleDeviceStatusCard(
                 title = "Watch – Galaxy Watch",
                 statusLabel = watchStatusLabel(watchState),
@@ -130,9 +131,23 @@ fun EstadoScreen(viewModel: AppViewModel, onBack: () -> Unit, filterDevice: Devi
             )
         }
 
-        if (filterDevice == null || filterDevice == DeviceId.WRISTBAND) {
+        // Uma pulseira por card, identificada pelo MAC address.
+        val visibleWristbands = wristbandDevices.filter { device ->
+            filterDevice == null || (filterDevice.id == DeviceId.WRISTBAND && device.id == filterDevice.instanceId)
+        }
+        if (visibleWristbands.isNotEmpty()) {
+            visibleWristbands.forEach { device ->
+                SimpleDeviceStatusCard(
+                    title = device.id,
+                    statusLabel = bleStatusLabel(device.state),
+                    statusColor = bleStatusColor(device.state),
+                    battery = device.battery,
+                )
+            }
+        } else if (filterDevice?.id == DeviceId.WRISTBAND) {
+            // A pulseira pedida já não está ligada — mostra o agregado.
             SimpleDeviceStatusCard(
-                title = "Wristband",
+                title = filterDevice.instanceId ?: "Wristband",
                 statusLabel = bleStatusLabel(wristbandState),
                 statusColor = bleStatusColor(wristbandState),
                 battery = wristbandBattery,

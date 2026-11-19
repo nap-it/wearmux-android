@@ -37,14 +37,19 @@ internal fun WearableService.streamTargetFps(
 }.coerceAtMost(10)
 
 internal fun WearableService.updateWristbandTrafficProfile(reason: String) {
-    val state = wristbandBleClient.state.value
-    if (state != BleDeviceState.READY && state != BleDeviceState.CONNECTED) return
+    // Com várias pulseiras ligadas, o perfil de tráfego aplica-se a **todas** —
+    // antes só a primeira sessão recebia a configuração.
+    val clients = currentWristbandClients().filter {
+        val state = it.state.value
+        state == BleDeviceState.READY || state == BleDeviceState.CONNECTED
+    }
+    if (clients.isEmpty()) return
     val targetRate = desiredWristbandSensorRateMs()
     if (wristbandSensorRateAppliedMs == targetRate) return
     val includeMagnetometer = SensorRatePolicy.includeMagnetometer(WearableService._mlProcessingLocation.value)
-    wristbandBleClient.setSensorsConfig(targetRate, includeMagnetometer, includePressure = false)
+    clients.forEach { it.setSensorsConfig(targetRate, includeMagnetometer, includePressure = false) }
     wristbandSensorRateAppliedMs = targetRate
-    WearableService.appendLog("BS sensors: imu=${targetRate}ms, mag=$includeMagnetometer ($reason)")
+    WearableService.appendLog("BS sensors: imu=${targetRate}ms, mag=$includeMagnetometer ($reason) · ${clients.size} pulseira(s)")
 }
 
 internal fun WearableService.startCandidateDiscovery() = scanAndConnect.startDiscovery()
@@ -70,9 +75,8 @@ internal fun WearableService.disconnectGlasses() {
         val id = currentGlassesSessionId()
         if (id != null) {
             deviceHub.disconnect(id)            // remove a sessão + client.disconnect()
-            glassesWearableAdapter.releaseClient(id)
         } else {
-            glassesBleClient.disconnect()
+            currentGlassesClient()?.disconnect()
         }
         WearableService._glassesState.value = BleDeviceState.DISCONNECTED
         WearableService._glassesIp.value = null
@@ -88,17 +92,39 @@ internal fun WearableService.disconnectWristband() {
         val id = currentWristbandSessionId()
         if (id != null) {
             deviceHub.disconnect(id)
-            wristbandWearableAdapter.releaseClient(id)
         } else {
-            wristbandBleClient.disconnect()
+            currentWristbandClients().forEach { it.disconnect() }
         }
-        WearableService._wristbandState.value = BleDeviceState.DISCONNECTED
+        // O estado global é o agregado das sessões — quem o recalcula é o
+        // observer do hub, quando a sessão sai. Não é preciso ( nem correcto)
+        // forçá-lo aqui: com várias pulseiras ligadas, uma pode continuar
+        // conectada.
         WearableService.appendLog("✅ Wristband disconnected")
     }
 }
 
+/**
+ * Desliga **apenas** a pulseira com este MAC address.
+ *
+ * Com várias pulseiras ligadas, [disconnectWristband] desfazia a primeira que
+ * encontrar — o que não corresponde ao que o utilizador vê no ecrã. Aqui a
+ * sessão é identificada pelo MAC, o mesmo que a UI mostra.
+ */
+internal fun WearableService.disconnectWristband(mac: String) {
+    WearableService.appendLog("🔌 Wristband $mac: manual disconnect requested")
+    serviceScope.launch {
+        val id = wristbandSessionId(mac)
+        if (id == null) {
+            WearableService.appendLog("⚠  Wristband $mac: no active session")
+            return@launch
+        }
+        deviceHub.disconnect(id)
+        WearableService.appendLog("✅ Wristband $mac disconnected")
+    }
+}
+
 internal fun WearableService.takePictureWithMicPriority(actionLabel: String) {
-    if (!WearableService._glassesState.value.isOnlineBle()) {
+    if (WearableService._glassesState.value?.isOnlineBle() != true){
         WearableService.appendLog("⚠  Photo: Omi is not connected (state: ${WearableService._glassesState.value.name})"); return
     }
     if (WearableService._glassesConnectionMode.value == GlassesConnectionMode.WIFI && !WearableService._udpActive.value) {
@@ -150,10 +176,17 @@ internal fun WearableService.applyGlassesMicrophoneProfileInternal(profile: Glas
     val decision = decideGlassesMicrophoneProfileApply(WearableService._glassesState.value, WearableService._glassesMicStreaming.value)
     if (!decision.canApply) { WearableService.appendLog("Microphone: ${decision.reason}"); return }
     val client = currentGlassesClient() ?: glassesBleClient
+    if (client == null) {
+        WearableService.appendLog("Microphone: Omi client not found")
+        return
+    }
+
     if (decision.shouldRestartStream) {
         WearableService.appendLog("Microphone: applying profile ${profile.profileId} with stream restart")
         WearableService._glassesMicStatusText.value = "RESTARTING"
-        client.stopMicrophone(); client.applyMicrophoneProfile(profile); client.startMicrophone()
+        client.stopMicrophone()
+        client.applyMicrophoneProfile(profile)
+        client.startMicrophone()
     } else {
         WearableService.appendLog("Microphone: applying profile ${profile.profileId}")
         client.applyMicrophoneProfile(profile)

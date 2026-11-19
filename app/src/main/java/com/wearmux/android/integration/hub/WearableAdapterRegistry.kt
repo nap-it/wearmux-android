@@ -1,5 +1,6 @@
 package com.wearmux.android.integration.hub
 
+import com.wearmux.android.integration.hub.DeviceType
 import com.wearmux.android.integration.adapters.WearableAdapter
 import com.wearmux.android.integration.adapters.WearableConnectedDeviceProfile
 import com.wearmux.android.integration.adapters.WearableScanCandidate
@@ -12,13 +13,21 @@ import com.wearmux.android.integration.adapters.WearableScanCandidate
  * lista — a desambiguação acontece em [confirm], que conhece os services/probes
  * realmente descobertos.
  */
-class WearableAdapterRegistry(private val adapters: List<WearableAdapter>) {
+class WearableAdapterRegistry(private val adapterFactories: Map<DeviceType, () -> WearableAdapter>) {
 
-    val all: List<WearableAdapter> get() = adapters
 
-    fun selectProbable(scan: WearableScanCandidate): List<WearableAdapter> =
-        adapters.filter { it.probableMatch(scan) }
+    fun getAllFactories(): List<() -> WearableAdapter> = adapterFactories.values.toList()
 
-    fun confirm(profile: WearableConnectedDeviceProfile): WearableAdapter? =
-        adapters.firstOrNull { it.confirmMatch(profile) }
+    fun selectProbable(scan: WearableScanCandidate): List<WearableAdapter> {
+        return adapterFactories.values.map { factory -> factory.invoke() }
+            .filter { adapter -> adapter.probableMatch(scan) }
+    }
+
+    fun confirm(profile: WearableConnectedDeviceProfile): WearableAdapter? {
+        val deviceType = DeviceType.fromScan(profile.scan)
+
+        val factory = adapterFactories[deviceType] ?: return null
+
+        return factory.invoke()
+    }
 }

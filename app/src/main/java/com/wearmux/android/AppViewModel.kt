@@ -10,6 +10,7 @@ import com.wearmux.android.integration.AlertPreferencesStore
 import com.wearmux.android.integration.BleConnectionCandidate
 import com.wearmux.android.integration.CapturedPhoto
 import com.wearmux.android.integration.DeveloperModeStore
+import com.wearmux.android.integration.DeviceEvent
 import com.wearmux.android.integration.GlassesConnectionMode
 import com.wearmux.android.integration.LatencySample
 import com.wearmux.android.integration.MlProcessingLocation
@@ -18,6 +19,7 @@ import com.wearmux.android.integration.RecordedAudio
 import com.wearmux.android.integration.WearableService
 import com.wearmux.android.integration.WearableServiceActions
 import com.wearmux.android.integration.adapters.BleDeviceState
+import com.wearmux.android.integration.adapters.WearableDeviceSnapshot
 import com.wearmux.android.integration.inference.InferenceMode
 import com.wearmux.android.integration.modules.android.AudioTestEngine
 import com.wearmux.android.integration.modules.android.PhoneBatteryMonitor
@@ -25,6 +27,7 @@ import com.wearmux.android.integration.modules.context.PdrPosition
 import com.wearmux.android.integration.modules.context.SavedRoute
 import com.wearmux.android.integration.modules.microphone.stt.SpeechSegment
 import com.wearmux.android.integration.modules.wearos.WatchClient
+import com.wearmux.android.integration.protocol.DeviceImuState
 import com.wearmux.android.integration.protocol.GlassesImuSample
 import com.wearmux.android.integration.protocol.ImuSample
 import com.wearmux.android.integration.protocol.WristbandImuSample
@@ -70,6 +73,34 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     val wristbandState: StateFlow<BleDeviceState> = WearableService.wristbandState
     val esp32State: StateFlow<BleDeviceState> = WearableService.esp32State
     val wristbandActivity: StateFlow<String> = WearableService.wristbandActivity
+
+    /**
+     * Uma entrada por pulseira Brilliant Sole ligada.
+     *
+     * Cada entrada traz o MAC address da pulseira ([WearableDeviceSnapshot.id]),
+     * por isso duas pulseiras aparecem como **dois objectos** distintos na UI
+     * em vez de um card único "Wristband".
+     */
+    val wristbandDevices: StateFlow<List<WearableDeviceSnapshot>> = WearableService.wristbandDevices
+
+    /** Mesma ideia para os óculos: uma entrada por sessão activa. */
+    val glassesDevices: StateFlow<List<WearableDeviceSnapshot>> = WearableService.glassesDevices
+
+    /**
+     * Eventos de todos os dispositivos, **identificados**.
+     *
+     * Cada evento traz o [com.wearmux.android.integration.adapters.WearableId]
+     * (MAC) de quem o emitiu — o IMU de duas pulseiras pode assim ser
+     * consumido em separado.
+     */
+    val deviceEvents: SharedFlow<DeviceEvent> = WearableService.deviceEvents
+
+    /**
+     * Último estado IMU **por dispositivo** (chaveado pelo MAC).
+     *
+     * Actualiza à taxa do sensor — usar apenas em ecrãs de diagnóstico.
+     */
+    val imuByDevice: StateFlow<Map<String, DeviceImuState>> = WearableService.imuByDevice
     val udpActive: StateFlow<Boolean> = WearableService.udpActive
     val udpServerActive: StateFlow<Boolean> = WearableService.udpServerActive
     val stats: StateFlow<String> = WearableService.stats
@@ -248,6 +279,19 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val context = getApplication<Application>()
         val intent = Intent(context, WearableService::class.java).apply {
             action = WearableServiceActions.ACTION_DISCONNECT_WRISTBAND
+        }
+        context.startService(intent)
+    }
+
+    /**
+     * Desliga **uma** pulseira, identificada pelo seu MAC address.
+     *
+     */
+    fun disconnectWristband(mac: String) {
+        val context = getApplication<Application>()
+        val intent = Intent(context, WearableService::class.java).apply {
+            action = WearableServiceActions.ACTION_DISCONNECT_WRISTBAND_BY_MAC
+            putExtra(WearableServiceActions.EXTRA_WRISTBAND_MAC, mac)
         }
         context.startService(intent)
     }

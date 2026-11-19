@@ -56,10 +56,12 @@ fun DeviceConnectionDialog(
     viewModel: AppViewModel,
     device: ConnectableDevice,
     onDismiss: () -> Unit,
+    /** MAC address da instância concreta (quando o dispositivo tem mais do que uma). */
+    instanceId: String? = null,
 ) {
     val title = when (device) {
-        ConnectableDevice.GLASSES -> "Glasses"
-        ConnectableDevice.WRISTBAND -> "Wristband"
+        ConnectableDevice.GLASSES -> instanceId ?: "Glasses"
+        ConnectableDevice.WRISTBAND -> instanceId ?: "Wristband"
         ConnectableDevice.GALAXY_WATCH -> "Galaxy Watch"
         ConnectableDevice.ESP32_CAM -> "ESP32 Camera (Manual Wi-Fi)"
     }

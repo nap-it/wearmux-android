@@ -41,7 +41,9 @@ internal fun WearableService.stopBackgroundJobs() {
 internal fun WearableService.disconnectAllWearables() {
     udpServer.stop(); capabilityScanner.stopScan()
     wifiUdpRecovery.disconnectUdpSession()
-    glassesBleClient.disconnect(); wristbandBleClient.disconnect()
+    glassesBleClient?.disconnect()
+    // Todas as pulseiras, não só a primeira.
+    currentWristbandClients().forEach { runCatching { it.disconnect() } }
     nsdRegistration.unregister(); udpWifiLock.release()
 }
 

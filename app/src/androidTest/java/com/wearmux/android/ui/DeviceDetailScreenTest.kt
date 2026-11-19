@@ -21,7 +21,7 @@ class DeviceDetailScreenTest {
             androidx.test.core.app.ApplicationProvider.getApplicationContext()
         )
         composeTestRule.setContent {
-            DeviceDetailScreen(viewModel = viewModel, deviceId = DeviceId.PHONE, onBack = {}, onOpenStatus = {})
+            DeviceDetailScreen(viewModel = viewModel, deviceRef = DeviceRef(DeviceId.PHONE), onBack = {}, onOpenStatus = {})
         }
 
         composeTestRule.onNodeWithText("Battery").assertExists()
@@ -36,7 +36,7 @@ class DeviceDetailScreenTest {
         )
         viewModel.setDeveloperMode(true)
         composeTestRule.setContent {
-            DeviceDetailScreen(viewModel = viewModel, deviceId = DeviceId.GLASSES, onBack = {}, onOpenStatus = {})
+            DeviceDetailScreen(viewModel = viewModel, deviceRef = DeviceRef(DeviceId.GLASSES), onBack = {}, onOpenStatus = {})
         }
 
         composeTestRule.onNodeWithTag("technical_details_block").assertExists()

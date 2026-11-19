@@ -10,6 +10,8 @@ object WearableServiceActions {
     const val ACTION_CONNECT_AUTO = "com.wearmux.android.CONNECT_AUTO"
     const val ACTION_DISCONNECT_GLASSES = "com.wearmux.android.DISCONNECT_GLASSES"
     const val ACTION_DISCONNECT_WRISTBAND = "com.wearmux.android.DISCONNECT_WRISTBAND"
+    /** Desliga **uma** pulseira, identificada pelo seu MAC (ver [EXTRA_WRISTBAND_MAC]). */
+    const val ACTION_DISCONNECT_WRISTBAND_BY_MAC = "com.wearmux.android.DISCONNECT_WRISTBAND_BY_MAC"
     const val ACTION_DISCOVER_CANDIDATES = "com.wearmux.android.DISCOVER_CANDIDATES"
     const val ACTION_STOP_DISCOVER_CANDIDATES = "com.wearmux.android.STOP_DISCOVER_CANDIDATES"
     const val ACTION_CONNECT_CANDIDATE = "com.wearmux.android.CONNECT_CANDIDATE"
@@ -76,6 +78,8 @@ object WearableServiceActions {
     const val EXTRA_SSID = "ssid"
     const val EXTRA_PASSWORD = "password"
     const val EXTRA_CANDIDATE_ADDRESS = "candidate_address"
+    /** MAC address da pulseira a desligar ([ACTION_DISCONNECT_WRISTBAND_BY_MAC]). */
+    const val EXTRA_WRISTBAND_MAC = "wristband_mac"
     const val EXTRA_KWS_HOST = "kws_host"
     const val EXTRA_ML_SERVER_URL = "ml_server_url"
     const val EXTRA_GLASSES_CONNECTION_MODE = "glasses_connection_mode"

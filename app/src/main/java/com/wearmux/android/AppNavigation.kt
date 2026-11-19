@@ -25,20 +25,26 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.wearmux.android.ui.DeviceDetailScreen
 import com.wearmux.android.ui.DeviceId
+import com.wearmux.android.ui.DeviceRef
 import com.wearmux.android.ui.DevLabScreen
 import com.wearmux.android.ui.EstadoScreen
 import com.wearmux.android.ui.HomeScreen
 import com.wearmux.android.ui.SettingsScreen
 
 private const val ROUTE_HOME = "home"
-private const val ROUTE_DEVICE = "device/{deviceId}"
+private const val ROUTE_DEVICE = "device/{deviceId}/{instanceId}"
 private const val ROUTE_SETTINGS = "settings"
 private const val ROUTE_DEV_LAB = "dev_lab"
-private const val ROUTE_STATUS = "status/{deviceId}"
+private const val ROUTE_STATUS = "status/{deviceId}/{instanceId}"
 private const val STATUS_ALL_DEVICES = "all"
 
-fun deviceRoute(deviceId: DeviceId) = "device/${deviceId.name}"
-private fun statusRoute(deviceId: DeviceId?) = "status/${deviceId?.name ?: STATUS_ALL_DEVICES}"
+/**
+ * Rota de um dispositivo concreto.
+ */
+fun deviceRoute(deviceRef: DeviceRef) = "device/${deviceRef.id.name}/${deviceRef.routeInstance}"
+
+private fun statusRoute(deviceRef: DeviceRef?) =
+    "status/${deviceRef?.id?.name ?: STATUS_ALL_DEVICES}/${deviceRef?.routeInstance ?: DeviceRef.NO_INSTANCE}"
 
 /**
  * `popBackStack()` isn't re-entrant-safe: two calls fired from the same
@@ -117,14 +123,18 @@ fun AppNavigation(viewModel: AppViewModel) {
             }
             composable(
                 route = ROUTE_DEVICE,
-                arguments = listOf(navArgument("deviceId") { type = NavType.StringType }),
+                arguments = listOf(
+                    navArgument("deviceId") { type = NavType.StringType },
+                    navArgument("instanceId") { type = NavType.StringType },
+                ),
             ) { backStackEntry ->
-                val deviceId = DeviceId.valueOf(
-                    backStackEntry.arguments?.getString("deviceId") ?: DeviceId.PHONE.name
+                val deviceRef = deviceRefFrom(
+                    backStackEntry.arguments?.getString("deviceId"),
+                    backStackEntry.arguments?.getString("instanceId"),
                 )
                 DeviceDetailScreen(
                     viewModel = viewModel,
-                    deviceId = deviceId,
+                    deviceRef = deviceRef,
                     onBack = { navController.safePopBackStack() },
                     onOpenStatus = { forDevice -> navController.navigate(statusRoute(forDevice)) },
                 )
@@ -141,10 +151,15 @@ fun AppNavigation(viewModel: AppViewModel) {
             }
             composable(
                 route = ROUTE_STATUS,
-                arguments = listOf(navArgument("deviceId") { type = NavType.StringType }),
+                arguments = listOf(
+                    navArgument("deviceId") { type = NavType.StringType },
+                    navArgument("instanceId") { type = NavType.StringType },
+                ),
             ) { backStackEntry ->
-                val deviceIdArg = backStackEntry.arguments?.getString("deviceId")
-                val filterDevice = deviceIdArg?.takeIf { it != STATUS_ALL_DEVICES }?.let { DeviceId.valueOf(it) }
+                val filterDevice = filterDeviceFrom(
+                    backStackEntry.arguments?.getString("deviceId"),
+                    backStackEntry.arguments?.getString("instanceId"),
+                )
                 EstadoScreen(
                     viewModel,
                     onBack = { navController.safePopBackStack() },
@@ -154,3 +169,27 @@ fun AppNavigation(viewModel: AppViewModel) {
         }
     }
 }
+
+/**
+ * Reconstrói um [DeviceRef] a partir dos argumentos de rota.
+ *
+ */
+
+private fun deviceRefFrom(deviceId: String?, instanceId: String?): DeviceRef {
+    val kind = deviceId?.takeIf { it.isNotBlank() && it != STATUS_ALL_DEVICES }?.let { name ->
+        runCatching { DeviceId.valueOf(name) }.getOrNull()
+    } ?: DeviceId.PHONE
+    return DeviceRef(kind, decodeInstance(instanceId))
+}
+
+/** Igual a [deviceRefFrom], mas `null` para o ecrã de status agregador ("all"). */
+private fun filterDeviceFrom(deviceId: String?, instanceId: String?): DeviceRef? {
+    if (deviceId.isNullOrBlank() || deviceId == STATUS_ALL_DEVICES) return null
+    val kind = runCatching { DeviceId.valueOf(deviceId) }.getOrNull() ?: return null
+    return DeviceRef(kind, decodeInstance(instanceId))
+}
+
+private fun decodeInstance(instanceId: String?): String? =
+    instanceId
+        ?.takeIf { it.isNotBlank() && it != DeviceRef.NO_INSTANCE }
+        ?.let { DeviceRef.percentDecode(it) }

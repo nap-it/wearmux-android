@@ -31,7 +31,7 @@ import kotlinx.coroutines.launch
 class OmiGlassesWearableSession(
     override val id: WearableId,
     profile: WearableConnectedDeviceProfile,
-    private val client: OmiGlassesBleClientApi,
+    internal val client: OmiGlassesBleClientApi,
     private val scope: CoroutineScope,
     private val realtimeSink: WearableRealtimeSink = WearableRealtimeSink.NONE,
     val callbackMultiplexer: OmiCallbackMultiplexer = OmiCallbackMultiplexer(client, scope),

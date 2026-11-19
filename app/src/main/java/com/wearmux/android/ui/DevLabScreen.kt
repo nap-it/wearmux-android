@@ -251,7 +251,7 @@ private fun AudioTab(viewModel: AppViewModel) {
 
 @Composable
 private fun ImuTab(viewModel: AppViewModel) {
-    val latestImuSamples by viewModel.latestImuSamples.collectAsStateWithLifecycle()
+    val imuByDevice by viewModel.imuByDevice.collectAsStateWithLifecycle()
     val latestGlassesImu by viewModel.latestGlassesImu.collectAsStateWithLifecycle()
     val latestGlassesQuaternion by viewModel.latestGlassesQuaternion.collectAsStateWithLifecycle()
     val imuStreamingEnabled by viewModel.imuStreamingEnabled.collectAsStateWithLifecycle()
@@ -263,23 +263,32 @@ private fun ImuTab(viewModel: AppViewModel) {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text("IMU Wristband", color = Constants.primaryTextColor, style = MaterialTheme.typography.titleSmall)
-        if (latestImuSamples.isEmpty()) {
+        // Um painel por dispositivo: as amostras de pulseiras diferentes nunca
+        // são misturadas.
+        Text("IMU per device", color = Constants.primaryTextColor, style = MaterialTheme.typography.titleSmall)
+        if (imuByDevice.isEmpty()) {
             Text("No recent IMU data.", color = Constants.secondaryTextColor, fontSize = 12.sp)
         } else {
-            val s = latestImuSamples.last()
-            val pAvg = if (s.pressure.isNotEmpty()) s.pressure.map { it.toInt() }.average() else 0.0
-            Text(
-                text = "samples=${latestImuSamples.size}  ax=${s.ax} ay=${s.ay} az=${s.az}  gx=${s.gx} gy=${s.gy} gz=${s.gz}  pAvg=${"%.1f".format(pAvg)}",
-                color = Constants.secondaryTextColor,
-                fontSize = 11.sp,
-                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(Constants.cardBackground)
-                    .padding(10.dp),
-            )
+            imuByDevice.forEach { (mac, state) ->
+                val s = state.latest
+                val pAvg = if (s != null && s.pressure.isNotEmpty()) s.pressure.map { it.toInt() }.average() else 0.0
+                Text(
+                    text = if (s == null) {
+                        "$mac  (no sample yet)"
+                    } else {
+                        "$mac  rate=${state.rateHz}Hz  n=${state.sampleCount}  " +
+                            "ax=${s.ax} ay=${s.ay} az=${s.az}  gx=${s.gx} gy=${s.gy} gz=${s.gz}  pAvg=${"%.1f".format(pAvg)}"
+                    },
+                    color = Constants.secondaryTextColor,
+                    fontSize = 11.sp,
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Constants.cardBackground)
+                        .padding(10.dp),
+                )
+            }
         }
 
         HeadTrackingCard(
@@ -399,3 +408,4 @@ private fun UseCaseToggleRow(label: String, checked: Boolean, onCheckedChange: (
         )
     }
 }
+
