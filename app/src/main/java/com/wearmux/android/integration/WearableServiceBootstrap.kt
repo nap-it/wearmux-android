@@ -33,9 +33,14 @@ internal fun WearableService.bootstrapAdaptersAndHub() {
         it.csvWriter = latencyCsvWriter
     }
 
+    // Ordem de inserção importa: em DefaultDeviceConnectionCoordinator.coordinate(),
+    // os adapters "prováveis" são tentados por esta ordem até um confirmar a ligação.
+    // Omi e Brilliant Sole partilham o mesmo UUID BLE e as mesmas characteristics
+    // RX/TX quando não há hint de sdkDeviceType no advertising, por isso o adapter
+    // Omi tem de ser tentado primeiro — senão a wristband aceita óculos Omi como seus.
     val myRegistry = WearableAdapterRegistry(mapOf(
-        DeviceType.WRISTBAND_BRILLIANT_SOLE to { BrilliantSoleWristbandWearableAdapter(defaultBrilliantSoleClientFactory(this), wearableRealtimeSink) },
         DeviceType.GLASSES_OMI to { OmiGlassesWearableAdapter(defaultOmiGlassesClientFactory(this), wearableRealtimeSink) },
+        DeviceType.WRISTBAND_BRILLIANT_SOLE to { BrilliantSoleWristbandWearableAdapter(defaultBrilliantSoleClientFactory(this), wearableRealtimeSink) },
         DeviceType.WATCH_GALAXY to { com.wearmux.android.integration.adapters.devices.galaxywatch.GalaxyWatchWearableAdapter(watchClient) },
         DeviceType.ESP32_CAMERA to { com.wearmux.android.integration.adapters.devices.esp32.Esp32WearableAdapter(realtimeSink = wearableRealtimeSink) }
     ))
